@@ -12,9 +12,9 @@ pero **no para instalar y utilizar el plugin**.
 
 ## Descargar e instalar
 
-El rebranding **0.6.1 está en desarrollo**. Los instaladores publicados y sus checksums
-están en [GitHub Releases](https://github.com/michaaels/dbeaver_echart_plugin/releases).
-La beta histórica [0.6.0](https://github.com/michaaels/dbeaver_echart_plugin/releases/tag/v0.6.0-beta.1)
+Descarga el instalador y su checksum en el [release **0.6.1-beta.1**](https://github.com/michaaels/beavercanvas/releases/tag/v0.6.1-beta.1).
+Todos los instaladores están en [GitHub Releases](https://github.com/michaaels/beavercanvas/releases).
+La beta histórica [0.6.0](https://github.com/michaaels/beavercanvas/releases/tag/v0.6.0-beta.1)
 todavía utiliza el nombre anterior. Los pasos siguientes corresponden a BeaverCanvas 0.6.1.
 
 1. En DBeaver, abre **Help / Ayuda → Install New Software → Add → Archive**.

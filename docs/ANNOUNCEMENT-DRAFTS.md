@@ -11,9 +11,9 @@ approved release URL; screenshots should match that version.
 **Topics:** `dbeaver`, `dbeaver-plugin`, `sql`, `dashboard`, `report-designer`,
 `data-visualization`, `apache-echarts`, `eclipse-plugin`, `java`, `open-source`.
 
-Keep the existing repository URL during the transition. A future rename to
-`beavercanvas` is optional and needs a separate review of links, downloads, CI
-and redirects; bundle IDs and user files should still remain unchanged.
+Repository: https://github.com/michaaels/beavercanvas. The repository rename
+keeps bundle IDs and user files unchanged. Historic packages retain their original
+filenames; new archives use `beavercanvas-<version>.zip`.
 
 ## Reddit
 
@@ -31,9 +31,9 @@ It's an independent open-source beta for DBeaver Desktop Community, powered by
 Apache ECharts. Windows and Linux are the current test targets; macOS and broad
 driver/mail-client certification are still pending.
 
-Source: https://github.com/michaaels/dbeaver_echart_plugin
+Source: https://github.com/michaaels/beavercanvas
 
-Install: [approved BeaverCanvas release URL]
+Install: https://github.com/michaaels/beavercanvas/releases/tag/v0.6.1-beta.1
 
 I'd appreciate feedback on the query editor, report layout and installation flow.
 
@@ -50,9 +50,9 @@ and an email draft with inline chart images.
 BeaverCanvas is an independent open-source beta for DBeaver Desktop Community,
 powered by Apache ECharts. Feedback and contributions are welcome.
 
-Source: https://github.com/michaaels/dbeaver_echart_plugin
+Source: https://github.com/michaaels/beavercanvas
 
-Install: [approved BeaverCanvas release URL]
+Install: https://github.com/michaaels/beavercanvas/releases/tag/v0.6.1-beta.1
 
 #SQL #DBeaver #DataVisualization #OpenSource
 

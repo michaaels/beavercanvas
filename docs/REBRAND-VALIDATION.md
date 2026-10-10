@@ -1,7 +1,7 @@
 # BeaverCanvas 0.6.1 validation — 2026-10-10
 
-This is a local rebranding candidate, not a published release or production
-certification. Target: DBeaver Desktop Community 26.2.2, Java 21 bytecode.
+Rebranding validation for `v0.6.1-beta.1`; this is not production certification.
+Target: DBeaver Desktop Community 26.2.2, Java 21 bytecode.
 The published 0.6.0 beta and previous releases are unchanged.
 
 | Check | Result and scope |
@@ -34,12 +34,14 @@ plugins, then the browser suites in `.github/workflows/p2-package.yml`.
 and writes a machine-readable lifecycle report. Use
 `scripts/fetch-upgrade-release.ps1` for the checksum-pinned published baseline.
 
-The installer delivered for local review is built from a clean detached checkout
-of the rebranding commit. Its `build-info.json` records the exact source commit,
+The local review installer is built from a clean detached checkout of the
+rebranding commit. The published installer is built by GitHub Actions from the
+final merged source commit and checked on both Windows and Linux. Its `build-info.json` records the exact source commit,
 qualified version, compiler, DBeaver target and unsigned state. Rebuilds can have
 different ZIP hashes because P2 metadata contains publication timestamps.
-GitHub Actions changes are prepared and YAML-parsed locally; no new remote CI
-run or release is claimed until the branch is explicitly published.
+The release notes link the GitHub Actions run for the published artifact.
+The table above also records the local checks, including the separate native
+SWT/WebKit fixture test; CI does not replace manual mail-client certification.
 
 ## Test environment observations
 

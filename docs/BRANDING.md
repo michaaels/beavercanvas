@@ -58,12 +58,13 @@ The registry tests assert the new labels on the original extension IDs.
 CI keeps the first 0.5.0 upgrade test and separately downloads the exact 0.6.0
 release from `dev/ci/published-upgrade-baseline.json`, verifying its SHA-256.
 
-## Publication boundary
+## Publication
 
-The rebranding branch does not publish a release, push a branch, rename the
-remote repository or rewrite historic releases. Recommended next tag:
-`v0.6.1-beta.1`, after reviewing the installer and passing CI on the final commit.
-Published 0.6.0 files and the native Linux screenshot remain historical evidence.
+The project repository is [michaaels/beavercanvas](https://github.com/michaaels/beavercanvas).
+The rebranding release is `v0.6.1-beta.1`; its installer is built and tested by
+GitHub Actions before publication. Historic releases and their asset filenames
+are retained. Published 0.6.0 files and its native Linux screenshot remain
+historical evidence.
 The `org.example` namespace stays for upgrade compatibility; it is not the public
 brand and should not be replaced without a separately designed migration.
 
