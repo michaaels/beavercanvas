@@ -9,7 +9,7 @@ import org.eclipse.ui.IWorkbenchPreferencePage;
 import org.eclipse.ui.preferences.ScopedPreferenceStore;
 
 /**
- * Preferences exposed under Window > Preferences > ECharts.
+ * Preferences exposed under Window > Preferences > BeaverCanvas.
  */
 public final class EChartsPreferencePage extends FieldEditorPreferencePage implements IWorkbenchPreferencePage {
     public EChartsPreferencePage() {
@@ -19,7 +19,7 @@ public final class EChartsPreferencePage extends FieldEditorPreferencePage imple
             EChartsPreferences.PLUGIN_ID
         ));
         EChartsPreferences.initializeDefaults(getPreferenceStore());
-        setDescription("Default limits and rendering options for ECharts result presentations.");
+        setDescription("Default limits and rendering options for BeaverCanvas result presentations.");
     }
 
     @Override

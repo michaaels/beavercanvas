@@ -51,4 +51,4 @@ function shutdown() {
 }
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
-server.listen(port, '127.0.0.1', () => console.log(`ECharts preview: http://127.0.0.1:${port}\nSample data only. Save web files to reload the page. Ctrl+C stops the server.`));
+server.listen(port, '127.0.0.1', () => console.log(`BeaverCanvas preview: http://127.0.0.1:${port}\nSample data only. Save web files to reload the page. Ctrl+C stops the server.`));

@@ -70,7 +70,7 @@ Opening a message is not a guarantee that every client treats it as an editable 
 
 ## Use
 
-Open **Window > Show View > Other > ECharts > Report Designer**, or use
+Open **Window > Show View > Other > BeaverCanvas > Report Designer**, or use
 **Report Designer** in the chart/dashboard toolbar to reuse its chart definitions.
 Add components, select them to edit properties, and configure sources in **Data**.
 Sources use named placeholders such as `:start_date`, with typed values in

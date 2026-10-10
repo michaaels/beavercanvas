@@ -1,5 +1,5 @@
 -- Run in SQLite (including DBeaver's SQLite sample database).
--- Select the ECharts presentation after executing this query.
+-- Select the BeaverCanvas presentation after executing this query.
 WITH datos(fecha, region, ventas, costos, longitud, latitud) AS (
   VALUES
     ('2026-09-01', 'Costa', 1200, 700, -79.9, -2.2),

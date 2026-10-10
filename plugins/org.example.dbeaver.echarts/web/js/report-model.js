@@ -37,7 +37,7 @@
   }
   function normalize(input) {
     if (!input || input.format !== FORMAT || input.schemaVersion !== 1 || !Array.isArray(input.widgets) || !Array.isArray(input.sources)) {
-      throw new Error('Unsupported report template. Choose an ECharts report JSON.');
+      throw new Error('Unsupported report template. Choose a BeaverCanvas report JSON.');
     }
     if (JSON.stringify(input).length > 8_388_608 || input.widgets.length > 64 || input.sources.length > 24) {
       throw new Error('A report supports up to 64 components, 24 queries and 8 MiB of template content.');

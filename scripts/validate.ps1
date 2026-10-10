@@ -76,14 +76,10 @@ if ($Javac) {
     Write-Host 'SKIP: javac is not installed'
 }
 
-$WebFiles = Get-ChildItem -Recurse -File 'plugins\org.example.dbeaver.echarts\web' |
-    Where-Object { $_.Name -ne 'echarts.min.js' }
-$NetworkMatches = $WebFiles | Select-String -Pattern 'https?://' -CaseSensitive:$false
-if ($NetworkMatches) {
-    $NetworkMatches | ForEach-Object { Write-Host $_ }
-    throw 'Browser frontend contains a network URL'
-}
-Write-Host 'Offline frontend OK: no HTTP(S) URLs in web/'
+& node 'scripts/check-offline.js'
+if ($LASTEXITCODE -ne 0) { throw 'Browser frontend contains a network URL' }
+& node 'scripts/test-offline.js'
+if ($LASTEXITCODE -ne 0) { throw 'Offline resource policy tests failed' }
 
 $ECharts = 'plugins\org.example.dbeaver.echarts\web\js\echarts.min.js'
 if (Test-Path -LiteralPath $ECharts) {

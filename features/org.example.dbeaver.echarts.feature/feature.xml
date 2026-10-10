@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <feature
       id="org.example.dbeaver.echarts.feature"
-      label="DBeaver ECharts Presentation"
-      version="0.6.0.qualifier"
-      provider-name="Example">
+      label="BeaverCanvas Plugin for DBeaver Desktop"
+      version="0.6.1.qualifier"
+      provider-name="michaaels">
 
    <description>
-      Interactive Apache ECharts visualization for DBeaver result sets.
+      SQL dashboards and a visual report designer for DBeaver Desktop Community. Independent open-source plugin powered by Apache ECharts.
    </description>
 
    <license url="https://www.apache.org/licenses/LICENSE-2.0">

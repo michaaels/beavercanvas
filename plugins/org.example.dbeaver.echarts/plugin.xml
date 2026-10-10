@@ -2,30 +2,30 @@
 <?eclipse version="3.4"?>
 <plugin>
    <extension point="org.eclipse.core.contenttype.contentTypes">
-      <content-type id="org.example.dbeaver.echarts.report" name="ECharts report template"
+      <content-type id="org.example.dbeaver.echarts.report" name="BeaverCanvas report template"
             base-type="org.eclipse.core.runtime.text" file-extensions="json" priority="high" default-charset="UTF-8"
             describer="org.example.dbeaver.echarts.ReportContentDescriber"/>
-      <content-type id="org.example.dbeaver.echarts.dashboard" name="ECharts dashboard"
+      <content-type id="org.example.dbeaver.echarts.dashboard" name="BeaverCanvas dashboard"
             base-type="org.eclipse.core.runtime.text" file-extensions="json" priority="high" default-charset="UTF-8"
             describer="org.example.dbeaver.echarts.DashboardContentDescriber"/>
    </extension>
    <extension point="org.eclipse.ui.editors">
       <editor id="org.example.dbeaver.echarts.reportEditor" name="Report Designer"
-            class="org.example.dbeaver.echarts.ReportEditor" icon="web/assets/echarts-icon.png" default="true">
+            class="org.example.dbeaver.echarts.ReportEditor" icon="web/assets/beavercanvas-16.png" default="true">
          <contentTypeBinding contentTypeId="org.example.dbeaver.echarts.report"/>
       </editor>
-      <editor id="org.example.dbeaver.echarts.dashboardEditor" name="ECharts dashboard"
-            class="org.example.dbeaver.echarts.DashboardEditor" icon="web/assets/echarts-icon.png" default="true">
+      <editor id="org.example.dbeaver.echarts.dashboardEditor" name="BeaverCanvas dashboard"
+            class="org.example.dbeaver.echarts.DashboardEditor" icon="web/assets/beavercanvas-16.png" default="true">
          <contentTypeBinding contentTypeId="org.example.dbeaver.echarts.dashboard"/>
       </editor>
    </extension>
    <extension point="org.jkiss.dbeaver.resourceType">
-      <type id="echarts-report" name="Report templates" icon="web/assets/echarts-icon.png" folderIcon="web/assets/echarts-icon.png" managable="true">
+      <type id="echarts-report" name="Report templates" icon="web/assets/beavercanvas-16.png" folderIcon="web/assets/beavercanvas-16.png" managable="true">
          <root folder="Reports/ECharts"/>
          <contentTypeBinding contentTypeId="org.example.dbeaver.echarts.report"/>
       </type>
-      <type id="echarts-dashboard" name="ECharts dashboard" icon="web/assets/echarts-icon.png"
-            folderIcon="web/assets/echarts-icon.png" managable="true">
+      <type id="echarts-dashboard" name="BeaverCanvas dashboard" icon="web/assets/beavercanvas-16.png"
+            folderIcon="web/assets/beavercanvas-16.png" managable="true">
          <root folder="Dashboards/ECharts"/>
          <contentTypeBinding contentTypeId="org.example.dbeaver.echarts.dashboard"/>
       </type>
@@ -35,17 +35,17 @@
       <handler type="echarts-dashboard" class="org.example.dbeaver.echarts.DashboardResourceHandler"/>
    </extension>
    <extension point="org.eclipse.ui.views">
-      <category id="org.example.dbeaver.echarts.views" name="ECharts"/>
+      <category id="org.example.dbeaver.echarts.views" name="BeaverCanvas"/>
       <view id="org.example.dbeaver.echarts.reportDesigner" name="Report Designer" category="org.example.dbeaver.echarts.views"
-            class="org.example.dbeaver.echarts.ReportDesignerView" icon="web/assets/echarts-icon.png" restorable="true"/>
+            class="org.example.dbeaver.echarts.ReportDesignerView" icon="web/assets/beavercanvas-16.png" restorable="true"/>
    </extension>
    <extension point="org.jkiss.dbeaver.resultset.presentation">
       <!-- Keep the optional chart presentation after DBeaver's built-in views. -->
       <presentation
             class="org.example.dbeaver.echarts.EChartsPresentation"
             id="resultset.echarts"
-            label="ECharts"
-            icon="web/assets/echarts-icon.png"
+            label="BeaverCanvas"
+            icon="web/assets/beavercanvas-16.png"
             type="custom"
             supportsRecordMode="false"
             supportsPanels="false"
@@ -59,7 +59,7 @@
    <extension point="org.eclipse.ui.preferencePages">
       <page
             id="org.example.dbeaver.echarts.preferences"
-            name="ECharts"
+            name="BeaverCanvas"
             class="org.example.dbeaver.echarts.EChartsPreferencePage"/>
    </extension>
 </plugin>

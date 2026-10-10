@@ -100,7 +100,7 @@
     const value = aggregate(snapshot, widget.config.column, widget.config.aggregate);
     body.append(node('div', `${widget.config.prefix}${format(value, widget.config)}${widget.config.suffix}`, 'report-kpi-value'));
   } });
-  register('chart', { label: 'ECharts chart', icon: '▥', render(body, widget, snapshot, context) {
+  register('chart', { label: 'Chart', icon: '▥', render(body, widget, snapshot, context) {
     body.append(node('h3', widget.title, 'report-chart-title'));
     if (!requireData(body, snapshot)) return;
     if (context.chartImages?.[widget.id]) {

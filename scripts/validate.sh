@@ -66,12 +66,8 @@ else
   echo 'SKIP: javac is not installed'
 fi
 
-if grep -RInE 'https?://' plugins/org.example.dbeaver.echarts/web --exclude='echarts.min.js'; then
-  echo 'ERROR: browser frontend contains a network URL' >&2
-  exit 1
-else
-  echo 'Offline frontend OK: no HTTP(S) URLs in web/'
-fi
+node scripts/check-offline.js
+node scripts/test-offline.js
 
 if [[ -f plugins/org.example.dbeaver.echarts/web/js/echarts.min.js ]]; then
   if ! command -v git >/dev/null 2>&1; then

@@ -25,7 +25,7 @@ import java.util.function.Consumer;
 
 /** Executes a bounded dashboard query in an owned, isolated execution context. */
 final class DashboardQueryJob extends AbstractJob {
-    private static final JobGroup QUERIES = new JobGroup("ECharts dashboard queries", 4, 0) {
+    private static final JobGroup QUERIES = new JobGroup("BeaverCanvas dashboard queries", 4, 0) {
         @Override
         protected boolean shouldCancel(IStatus result, int failures, int cancellations) { return false; }
     };
@@ -58,7 +58,7 @@ final class DashboardQueryJob extends AbstractJob {
     DashboardQueryJob(java.util.function.Supplier<DBCExecutionContext> context, String sql, int maxRows, int maxCells,
                       int timeoutSeconds, Consumer<String> onSuccess, Consumer<Exception> onFailure,
                       List<ReportParameters.Binding> parameters) {
-        super("Refresh ECharts dashboard widget");
+        super("Refresh BeaverCanvas dashboard widget");
         this.context = context;
         this.sql = sql;
         this.maxRows = Math.max(1, maxRows);
@@ -84,7 +84,7 @@ final class DashboardQueryJob extends AbstractJob {
         Thread thread = worker;
         if (statement != null) {
             // JDBC cancellation may block: never run it on the SWT or deadline thread.
-            Job.createSystem("Cancel ECharts widget query", (org.eclipse.core.runtime.ICoreRunnable) monitor -> {
+            Job.createSystem("Cancel BeaverCanvas widget query", (org.eclipse.core.runtime.ICoreRunnable) monitor -> {
                 if (activeStatement.get() == statement) {
                     try { statement.cancelBlock(new VoidProgressMonitor(), thread); }
                     catch (Exception ignored) { /* Completion/timeout reporting stays on the owning job. */ }
@@ -96,7 +96,7 @@ final class DashboardQueryJob extends AbstractJob {
     @Override
     protected IStatus run(DBRProgressMonitor monitor) {
         worker = Thread.currentThread();
-        Job deadline = Job.createSystem("ECharts query deadline", (org.eclipse.core.runtime.ICoreRunnable) ignored -> {
+        Job deadline = Job.createSystem("BeaverCanvas query deadline", (org.eclipse.core.runtime.ICoreRunnable) ignored -> {
             if (stop.compareAndSet(Stop.NONE, Stop.TIMEOUT)) cancel();
         });
         deadline.schedule(timeoutSeconds * 1000L);
@@ -137,7 +137,7 @@ final class DashboardQueryJob extends AbstractJob {
         if (source.getDataSource().getContainer().isForceUseSingleConnection()) {
             throw new IllegalStateException("Dashboard queries require a separate connection. Disable single-connection mode for this data source.");
         }
-        DBCExecutionContext isolated = source.getOwnerInstance().openIsolatedContext(monitor, "ECharts dashboard", source);
+        DBCExecutionContext isolated = source.getOwnerInstance().openIsolatedContext(monitor, "BeaverCanvas dashboard", source);
         // Never close or use the editor context if a driver cannot provide isolation.
         if (isolated == null || isolated == source) throw new IllegalStateException("The driver did not provide an isolated dashboard context.");
         return isolated;
@@ -146,7 +146,7 @@ final class DashboardQueryJob extends AbstractJob {
     private String execute(DBRProgressMonitor monitor) throws Exception {
         try (
             DBCExecutionContext isolated = openContext(monitor);
-            DBCSession session = isolated.openSession(monitor, DBCExecutionPurpose.USER, "ECharts dashboard widget");
+            DBCSession session = isolated.openSession(monitor, DBCExecutionPurpose.USER, "BeaverCanvas dashboard widget");
             DBCStatement statement = prepare(session)
         ) {
             activeStatement.set(statement);

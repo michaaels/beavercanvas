@@ -294,7 +294,7 @@ public final class EChartsPresentation extends AbstractPresentation {
             }
             root.setLayout(new FillLayout());
             Label fallback = new Label(root, SWT.WRAP);
-            fallback.setText("ECharts presentation could not start.\n\n" + safeMessage(e));
+            fallback.setText("BeaverCanvas presentation could not start.\n\n" + safeMessage(e));
         }
     }
 
@@ -529,7 +529,7 @@ public final class EChartsPresentation extends AbstractPresentation {
             return null;
         }
         FileDialog dialog = new FileDialog(currentBrowser.getShell(), SWT.OPEN);
-        dialog.setText("Import ECharts dashboard");
+        dialog.setText("Import BeaverCanvas dashboard");
         dialog.setFilterExtensions(new String[] {"*.echarts-dashboard.json", "*.json", "*.*"});
         setDashboardFolder(dialog);
         String selected = dialog.open();
@@ -550,7 +550,7 @@ public final class EChartsPresentation extends AbstractPresentation {
             return Boolean.FALSE;
         }
         FileDialog dialog = new FileDialog(currentBrowser.getShell(), SWT.SAVE);
-        dialog.setText("Export ECharts dashboard");
+        dialog.setText("Export BeaverCanvas dashboard");
         dialog.setFileName("dashboard.echarts-dashboard.json");
         dialog.setFilterExtensions(new String[] {"*.echarts-dashboard.json", "*.json"});
         dialog.setOverwrite(true);
@@ -574,7 +574,7 @@ public final class EChartsPresentation extends AbstractPresentation {
             Path folder = dashboardFolder();
             Files.createDirectories(folder);
             FileDialog dialog = new FileDialog(browser.getShell(), SWT.SAVE);
-            dialog.setText("Save ECharts dashboard (JSON and SQL)");
+            dialog.setText("Save BeaverCanvas dashboard (JSON and SQL)");
             dialog.setFilterPath(folder.toString());
             String name = JsonFields.string(dashboard, "title").replaceAll("[\\\\/:*?\"<>|\\p{Cntrl}]", "_")
                 .replaceAll("[ .]+$", "");
@@ -604,7 +604,7 @@ public final class EChartsPresentation extends AbstractPresentation {
 
     private Boolean openDashboard() {
         FileDialog dialog = new FileDialog(browser.getShell(), SWT.OPEN);
-        dialog.setText("Open ECharts dashboard");
+        dialog.setText("Open BeaverCanvas dashboard");
         dialog.setFilterExtensions(new String[] {"*.echarts-dashboard.json", "*.json"});
         setDashboardFolder(dialog);
         String selected = dialog.open();
@@ -619,7 +619,7 @@ public final class EChartsPresentation extends AbstractPresentation {
     }
 
     private void showDashboardError(Exception error) {
-        MessageDialog.openError(browser.getShell(), "ECharts dashboard", safeMessage(error));
+        MessageDialog.openError(browser.getShell(), "BeaverCanvas dashboard", safeMessage(error));
     }
 
     String currentDashboardDocument() {

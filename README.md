@@ -1,18 +1,31 @@
-# DBeaver ECharts — 0.6.0 beta
+<img src="plugins/org.example.dbeaver.echarts/web/assets/beavercanvas-256.png" width="180" height="180" alt="BeaverCanvas: castor analista frente a un dashboard">
 
-Plugin independiente para **DBeaver Community**: convierte resultados SQL en gráficos,
+# BeaverCanvas
+
+**SQL Dashboards & Report Designer** · BeaverCanvas Plugin for DBeaver Desktop
+
+*Turn SQL into visuals. Stay in DBeaver.*
+
+Plugin independiente para **DBeaver Desktop Community**: convierte resultados SQL en gráficos,
 dashboards y reportes visuales con Apache ECharts. Eclipse se necesita para desarrollar,
 pero **no para instalar y utilizar el plugin**.
 
 ## Descargar e instalar
 
-Descarga el ZIP P2 y su checksum en el [release 0.6.0 beta](https://github.com/michaaels/dbeaver_echart_plugin/releases/tag/v0.6.0-beta.1).
+Descarga el instalador y su checksum en el [release **0.6.1-beta.1**](https://github.com/michaaels/beavercanvas/releases/tag/v0.6.1-beta.1).
+Todos los instaladores están en [GitHub Releases](https://github.com/michaaels/beavercanvas/releases).
+La beta histórica [0.6.0](https://github.com/michaaels/beavercanvas/releases/tag/v0.6.0-beta.1)
+todavía utiliza el nombre anterior. Los pasos siguientes corresponden a BeaverCanvas 0.6.1.
 
 1. En DBeaver, abre **Help / Ayuda → Install New Software → Add → Archive**.
-2. Selecciona `dbeaver-echarts-<version>.zip` sin descomprimirlo.
-3. Marca **DBeaver ECharts Presentation**, completa la instalación y reinicia.
-4. Ejecuta un `SELECT` y selecciona **ECharts** en las pestañas del resultado.
-5. Para reportes, abre **Window → Show View → Other → ECharts → Report Designer**.
+2. Selecciona `beavercanvas-<version>.zip` sin descomprimirlo.
+3. Marca **BeaverCanvas Plugin for DBeaver Desktop**, completa la instalación y reinicia.
+4. Ejecuta un `SELECT` y selecciona **BeaverCanvas** en las pestañas del resultado.
+5. Para reportes, abre **Window → Show View → Other → BeaverCanvas → Report Designer**.
+
+La actualización conserva la instalación existente: IDs P2, preferencias, extensiones
+`.echarts-dashboard.json` / `.echarts-report.json` y carpetas `Dashboards/ECharts` /
+`Reports/ECharts`. No necesitas mover tus archivos ni instalar un segundo plugin.
 
 Target probado: **DBeaver Community 26.2.2, Windows y Linux x86_64**.
 Es una **beta sin firma**, con certificación de drivers, clientes de correo y macOS pendiente.
@@ -21,8 +34,11 @@ Consulta la [guía de instalación](docs/P2-UPDATE-SITE.md), la
 
 ## Funcionalidades en imágenes
 
-Capturas reales del plugin con datos de ejemplo. La captura del diseñador en Linux
-se tomó dentro de DBeaver; las demás muestran el frontend local durante sus pruebas.
+Capturas del frontend local de BeaverCanvas con datos de ejemplo, tomadas durante
+las pruebas de interacción. La [captura nativa de la beta 0.6.0 en Linux](docs/screenshots/report-designer-linux.png)
+se conserva como evidencia histórica de DBeaver; todavía muestra el nombre anterior.
+La [captura nativa de BeaverCanvas en Linux](docs/screenshots/report-designer-native-linux.png)
+muestra el nuevo icono en SWT/WebKit con datos sintéticos de prueba, sin ejecutar SQL.
 
 ### Dashboards y mapas
 
@@ -46,7 +62,7 @@ Diseña una hoja con títulos, textos, imágenes, secciones, gráficos, KPIs y t
 Configura propiedades, fuentes de datos y parámetros; guarda plantillas reutilizables
 con su SQL. Las tablas admiten paginación, totales y formato condicional.
 
-![Report Designer instalado en DBeaver Linux con gráfico, tabla paginada y KPI](docs/screenshots/report-designer-linux.png)
+![BeaverCanvas Report Designer con gráfico, tabla paginada y KPI](docs/screenshots/report-designer.png)
 
 ### Arrastre con reorganización previa
 
@@ -129,3 +145,21 @@ Consulta [desarrollo](docs/DEVELOPMENT.md), [build](docs/BUILD.md) y
 Los recursos de terceros tienen versiones y hashes fijados. Licencias, avisos y
 procedencia están en [third-party/](plugins/org.example.dbeaver.echarts/third-party/); los scripts de actualización
 están en `scripts/`.
+
+El código del plugin se publica bajo [Apache License 2.0](LICENSE). Apache ECharts
+y d3-geo conservan sus licencias y avisos originales. El icono de BeaverCanvas es
+una adaptación vectorial de la imagen aportada por el autor del proyecto; sus
+[fuentes y variantes](docs/BRANDING.md) se mantienen separadas de los recursos de terceros.
+
+BeaverCanvas es un proyecto independiente, mantenido por [michaaels](https://github.com/michaaels).
+No es un producto oficial de DBeaver ni está afiliado a DBeaver Corporation o la
+Apache Software Foundation. Los nombres DBeaver y Apache ECharts pertenecen a sus
+respectivos titulares. Este plugin funciona en DBeaver Desktop; no incluye CloudBeaver.
+
+## Contribuir
+
+Abre un issue con versión de DBeaver, sistema operativo y pasos reproducibles;
+comparte ejemplos SQL sin credenciales ni datos privados. Para contribuir código,
+consulta [desarrollo](docs/DEVELOPMENT.md), ejecuta las validaciones y envía un PR
+con el comportamiento esperado y las pruebas realizadas. Los cambios de formatos
+persistidos e identificadores requieren mantener compatibilidad con archivos existentes.

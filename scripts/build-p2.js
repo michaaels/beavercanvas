@@ -41,7 +41,7 @@ const base = manifest.match(/^Bundle-Version: (\d+\.\d+\.\d+)\.qualifier\s*$/m)?
 if (!base) throw new Error('Expected a qualified source Bundle-Version');
 const version = base + '.' + qualifier;
 const output = path.resolve(options.output || path.join(root, 'dist'));
-const repository = path.join(output, 'dbeaver-echarts-' + version);
+const repository = path.join(output, 'beavercanvas-' + version);
 const archive = repository + '.zip';
 if (fs.existsSync(repository) || fs.existsSync(archive)) throw new Error('Release already exists; use another --output directory or qualifier');
 fs.mkdirSync(path.join(root, '.dev'), { recursive: true });
