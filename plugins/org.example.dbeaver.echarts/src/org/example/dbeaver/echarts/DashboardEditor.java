@@ -46,12 +46,12 @@ public final class DashboardEditor extends EditorPart {
                     .map(item -> (DBPProject) item)
                     .filter(item -> file.startsWith(item.getAbsolutePath())).findFirst()
                     .orElse(DBWorkbench.getPlatform().getWorkspace().getActiveProject());
-            } else { throw new IllegalArgumentException("Open a local ECharts dashboard JSON file."); }
+            } else { throw new IllegalArgumentException("Open a local BeaverCanvas dashboard JSON file."); }
             document = DashboardFiles.read(file);
             savedDocument = document;
             diskText = Files.readString(file, StandardCharsets.UTF_8);
             setPartName(file.getFileName().toString());
-        } catch (Exception e) { throw new PartInitException("Cannot open ECharts dashboard: " + e.getMessage(), e); }
+        } catch (Exception e) { throw new PartInitException("Cannot open BeaverCanvas dashboard: " + e.getMessage(), e); }
     }
 
     @Override
@@ -90,7 +90,7 @@ public final class DashboardEditor extends EditorPart {
             }
             return file.toString();
         } catch (Exception e) {
-            MessageDialog.openError(getSite().getShell(), "Save ECharts dashboard", e.getMessage());
+            MessageDialog.openError(getSite().getShell(), "Save BeaverCanvas dashboard", e.getMessage());
             return null;
         }
     }
@@ -101,7 +101,7 @@ public final class DashboardEditor extends EditorPart {
             // Read current browser state synchronously; do not lose the 250 ms pending update.
             saveDocument(presentation.currentDashboardDocument());
         } catch (Exception e) {
-            MessageDialog.openError(getSite().getShell(), "Save ECharts dashboard", e.getMessage());
+            MessageDialog.openError(getSite().getShell(), "Save BeaverCanvas dashboard", e.getMessage());
         }
     }
 

@@ -35,7 +35,7 @@ $Utf8 = [Text.UTF8Encoding]::new($false)
 $Target = @"
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <?pde version="3.8"?>
-<target name="DBeaver local - ECharts" sequenceNumber="1">
+<target name="DBeaver local - BeaverCanvas" sequenceNumber="1">
   <locations><location path="$TargetPath" type="Profile"/></locations>
   <environment><os>win32</os><ws>win32</ws><arch>x86_64</arch></environment>
   <targetJRE path="$JreContainer"/>

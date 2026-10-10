@@ -109,3 +109,6 @@
 @media (max-width: 1000px) { .report-workspace { grid-template-columns: 148px minmax(240px,1fr) 236px; } .report-library, .report-properties { padding: 8px; } .report-canvas-scroll { padding: 24px 12px; } }
 @media (max-width: 720px) { .report-workspace { grid-template-columns: 112px minmax(160px,1fr); grid-template-rows: minmax(200px,1fr) 220px; } .report-properties { grid-column: 1/-1; border-top: 1px solid var(--border); } .report-title-row > strong { display: none; } .report-title-row > input { font-size: 16px; max-width: 60%; } .report-source-layout { grid-template-columns: 1fr; } .report-parameter-row { grid-template-columns: 1fr 1fr; } .report-actions button { font-size: 11px; } }
 @media (max-width: 720px) { .report-email-preview { flex-basis: 280px; } }
+.product-brand { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.product-brand img { flex: none; }
+.product-brand small { font-size: .8em; font-weight: 400; color: var(--muted); }

@@ -190,7 +190,7 @@ final class ReportFiles {
         String json = GSON.toJson(report) + "\n";
         if (json.getBytes(StandardCharsets.UTF_8).length > MAX_BYTES) throw new IOException("Report template exceeds 8 MiB.");
         DocumentFiles.writeWithSqlCompanion(path, json, sqlDocument(report), "-- ECharts report:",
-            "The SQL companion is not an ECharts report file. Choose another name.");
+            "The SQL companion is not a BeaverCanvas report file. Choose another name.");
     }
 
     private static String sqlDocument(JsonObject report) {

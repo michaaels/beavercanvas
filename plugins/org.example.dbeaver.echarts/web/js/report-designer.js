@@ -352,7 +352,7 @@
         const section = node('section', undefined, 'report-review-query');
         section.append(node('h3', query.source.name), node('p', `${query.source.project || 'Project'} / ${query.source.connection || query.source.connectionId}`), node('pre', query.sql));
         for (const [name, parameter] of Object.entries(query.source.parameters)) section.append(node('p', `${name} (${parameter.type}): ${parameter.value}`));
-        section.append(node('p', `${query.sourceIds.length} source definitions share this result. Row limit: ${query.source.maxRows || 'DBeaver ECharts preference'}.`));
+        section.append(node('p', `${query.sourceIds.length} source definitions share this result. Row limit: ${query.source.maxRows || 'BeaverCanvas preference'}.`));
         $('reportReviewQueries').append(section);
       }
       if ($('reportDataDialog').open) $('reportDataDialog').close(); showDialog('reportReviewDialog');

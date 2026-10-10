@@ -79,7 +79,7 @@ el botón **Stop** de un widget permite hacerlo individualmente. **Refresh** o
 **Refresh all** reanuda consultas aprobadas. Un error o timeout pausa la consulta
 afectada hasta que la actualices explícitamente.
 
-En **Window > Preferences > ECharts**, el timeout predeterminado es 30 segundos,
+En **Window > Preferences > BeaverCanvas**, el timeout predeterminado es 30 segundos,
 con rango de 1 a 3600. Se ejecutan como máximo cuatro consultas simultáneas y
 cada una abre su propio contexto, separado de las transacciones del editor SQL.
 Las conexiones configuradas para usar una única sesión no pueden ejecutar estas

@@ -6,26 +6,33 @@ to build the package, but is not needed to use it.
 ## Instalar en DBeaver
 
 Target de la beta: **DBeaver Community 26.2.2, Windows y Linux x86_64**.
-Descarga el ZIP P2 y el checksum desde el
-[release 0.6.0 beta](https://github.com/michaaels/dbeaver_echart_plugin/releases/tag/v0.6.0-beta.1).
+BeaverCanvas 0.6.1 está en desarrollo. Los paquetes publicados y sus checksums
+están en [GitHub Releases](https://github.com/michaaels/dbeaver_echart_plugin/releases).
+El [release histórico 0.6.0](https://github.com/michaaels/dbeaver_echart_plugin/releases/tag/v0.6.0-beta.1)
+conserva el nombre DBeaver ECharts y su ZIP `dbeaver-echarts-*.zip`; usa sus etiquetas
+anteriores si instalas esa versión. Los pasos siguientes describen BeaverCanvas 0.6.1.
 
 1. Abre **Help / Ayuda → Install New Software / Instalar nuevo software**.
-2. Pulsa **Add / Añadir → Archive / Archivo** y selecciona `dbeaver-echarts-<version>.zip`.
-   No necesitas descomprimirlo. Ponle el nombre `DBeaver ECharts`.
-3. Selecciona **DBeaver ECharts Presentation** y continúa con **Next / Siguiente**.
+2. Pulsa **Add / Añadir → Archive / Archivo** y selecciona `beavercanvas-<version>.zip`.
+   No necesitas descomprimirlo. Ponle el nombre `BeaverCanvas`.
+3. Selecciona **BeaverCanvas Plugin for DBeaver Desktop** y continúa con **Next / Siguiente**.
 4. Acepta la licencia. Este paquete de prueba no está firmado; si DBeaver muestra
    la pantalla de confianza, autoriza el contenido del paquete local generado.
 5. Termina la instalación y reinicia DBeaver cuando lo solicite.
-6. Ejecuta un `SELECT` y abre la pestaña **ECharts** del resultado. Para un dashboard
+6. Ejecuta un `SELECT` y abre la pestaña **BeaverCanvas** del resultado. Para un dashboard
    guardado, abre `*.echarts-dashboard.json` desde el proyecto. Cada widget permite
    editar su consulta y conexión con **Edit**.
-7. En la versión 0.6.0, abre **Window → Show View → Other → ECharts → Report Designer**
+7. Abre **Window → Show View → Other → BeaverCanvas → Report Designer**
    para diseñar reportes. También puedes usar **Report Designer** en la barra de un
    gráfico/dashboard y abrir plantillas `*.echarts-report.json`.
 
 Para desinstalar: **Help → About DBeaver → Installation Details → Installed Software**,
-selecciona **DBeaver ECharts Presentation** y pulsa **Uninstall**.
+selecciona **BeaverCanvas Plugin for DBeaver Desktop** y pulsa **Uninstall**.
 Instala una versión posterior desde su ZIP usando el mismo procedimiento.
+
+Al actualizar desde 0.6.0, BeaverCanvas reemplaza el mismo bundle/feature P2.
+No cambian las preferencias, los formatos, las extensiones ni las carpetas
+`Dashboards/ECharts` y `Reports/ECharts`. Los archivos existentes no se mueven.
 
 Las conexiones pertenecen al workspace de DBeaver. Un workspace nuevo necesita
 configurar sus conexiones y reasignarlas en los widgets importados. El paquete
@@ -52,9 +59,9 @@ Eclipse configuration and does not change your development installation.
 
 Output in ignored `dist/`:
 
-- `dbeaver-echarts-<version>.zip`: installable archive with P2 metadata at its root;
-- `dbeaver-echarts-<version>/`: repository for local directory/HTTP installation;
-- `dbeaver-echarts-<version>.zip.sha256`: archive checksum;
+- `beavercanvas-<version>.zip`: installable archive with P2 metadata at its root;
+- `beavercanvas-<version>/`: repository for local directory/HTTP installation;
+- `beavercanvas-<version>.zip.sha256`: archive checksum;
 - `build-info.json` inside the archive: source commit, target, compiler and bytecode level.
 
 The qualifier uses the HEAD commit date and hash. `--qualifier <value>` and
@@ -74,7 +81,7 @@ the graphical workbench or alter an existing DBeaver installation.
 $env:ECHARTS_COMPILER_JDK = "C:/Program Files/Microsoft/jdk-21.0.10.7-hotspot"
 powershell -NoProfile -File scripts/test-p2-install.ps1 `
   -DistributionZip "D:/downloads/dbeaver-ce-26.2.2-windows-x86_64.zip" `
-  -RepositoryZip "dist/dbeaver-echarts-<version>.zip" `
+  -RepositoryZip "dist/beavercanvas-<version>.zip" `
   -Destination ".dev/my-installed-test"
 ```
 
@@ -107,12 +114,15 @@ The previous package is built from the commit in `dev/ci/upgrade-baseline.json`
 using a detached worktree. The current package must pass installation, upgrade,
 uninstallation, reinstallation, registry/resources and JSON/SQL preservation before
 it is uploaded as a downloadable Actions artifact with its checksum and test report.
-The baseline currently covers the first installable 0.5.0 package; update it
-intentionally when a new release becomes the supported upgrade baseline.
+The baseline covers the first installable 0.5.0 package. A second, independent
+cycle checks the exact published 0.6.0 beta archive from
+`dev/ci/published-upgrade-baseline.json`, downloaded and verified by SHA-256.
+Both use the same legacy install IU. The new labels and packaged icons are
+asserted in the installed registry on the original extension IDs.
 
 Open **GitHub → Actions → P2 package → successful run → Artifacts** and download
-`dbeaver-echarts-p2-windows-<commit>`. Extract that Actions download, then select
-the inner `dbeaver-echarts-<version>.zip` in DBeaver's **Add → Archive** dialog.
+`beavercanvas-p2-windows-<commit>`. Extract that Actions download, then select
+the inner `beavercanvas-<version>.zip` in DBeaver's **Add → Archive** dialog.
 Artifacts are retained for 14 days. Published release ZIPs and checksums are also
 available in GitHub Releases. The workflow does not deploy a public update site.
 After Windows passes, Ubuntu installs the same archive and runs Chromium/WebKit

@@ -20,7 +20,7 @@ final class EChartsSnapshotJob extends Job {
         Consumer<String> onSuccess,
         Consumer<RuntimeException> onFailure
     ) {
-        super("Build ECharts result snapshot");
+        super("Build BeaverCanvas result snapshot");
         this.adapter = adapter;
         this.onSuccess = onSuccess;
         this.onFailure = onFailure;
@@ -43,7 +43,7 @@ final class EChartsSnapshotJob extends Job {
             if (!monitor.isCanceled()) {
                 onFailure.accept(e);
             }
-            return new Status(IStatus.ERROR, EChartsPreferences.PLUGIN_ID, "Could not build ECharts snapshot", e);
+            return new Status(IStatus.ERROR, EChartsPreferences.PLUGIN_ID, "Could not build BeaverCanvas snapshot", e);
         }
     }
 }

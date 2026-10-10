@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="75 245 1100 790" role="img" aria-labelledby="title description">
+  <title id="title">BeaverCanvas</title>
+  <desc id="description">A beaver analyst in a navy suit, in front of a blue dashboard.</desc>
+  <defs>
+    <linearGradient id="window" x2="1" y2="1"><stop stop-color="#123956"/><stop offset=".5" stop-color="#082943"/><stop offset="1" stop-color="#123554"/></linearGradient>
+    <linearGradient id="header" x2=".8" y2="1"><stop stop-color="#244e79"/><stop offset="1" stop-color="#193e68"/></linearGradient>
+    <linearGradient id="fur" x2=".85" y2="1"><stop stop-color="#d57936"/><stop offset=".55" stop-color="#bf632b"/><stop offset="1" stop-color="#a44822"/></linearGradient>
+    <linearGradient id="muzzle" x2="1" y2="1"><stop stop-color="#f9bc74"/><stop offset="1" stop-color="#f4a45b"/></linearGradient>
+    <linearGradient id="tail" x2="1" y2="1"><stop stop-color="#723b28"/><stop offset="1" stop-color="#391d17"/></linearGradient>
+    <linearGradient id="ear" x2="1" y2="1"><stop stop-color="#4c231c"/><stop offset="1" stop-color="#391b15"/></linearGradient>
+    <linearGradient id="suit" x2=".8" y2="1"><stop stop-color="#123c70"/><stop offset="1" stop-color="#061c36"/></linearGradient>
+    <linearGradient id="blue" x2="1" y2="1"><stop stop-color="#41a9fb"/><stop offset="1" stop-color="#168cfc"/></linearGradient>
+    <linearGradient id="sky" x2="1" y2="1"><stop stop-color="#9ed2ff"/><stop offset="1" stop-color="#76baff"/></linearGradient>
+    <linearGradient id="rows" x2="1" y2="1"><stop stop-color="#97b0cc"/><stop offset="1" stop-color="#82a2c4"/></linearGradient>
+  </defs>
+  <!-- Dashboard: continuous rounded frame and the raised tab behind the white sheet. -->
+  <rect x="315" y="253" width="849" height="775" rx="110" fill="url(#window)"/>
+  <path d="M604 392 C641 390 650 371 659 343 C666 323 683 312 711 312 H1066 C1101 312 1127 337 1127 370 V438 H604Z" fill="url(#header)"/>
+  <circle cx="415" cy="336" r="29" fill="#0083ff"/>
+  <circle cx="502" cy="336" r="29" fill="#43aaff"/>
+  <circle cx="588" cy="336" r="29" fill="#c4e5fd"/>
+  <rect x="342" y="389" width="785" height="609" rx="45" fill="#fff"/>
+  <path d="M653 423 C587 424 535 478 535 543 C535 559 538 574 543 588 C595 606 640 634 681 669 C714 665 743 648 763 621 L659 543 V429 Q659 422 653 423Z" fill="#007fff"/>
+  <path d="M686 420 C753 420 807 475 807 542 C807 564 800 585 789 603 Q786 609 781 605 L682 532 Q679 530 679 526 V427 Q679 420 686 420Z" fill="url(#sky)"/>
+  <rect x="846" y="471" width="240" height="41" rx="20.5" fill="url(#rows)"/>
+  <rect x="846" y="537" width="198" height="41" rx="20.5" fill="url(#rows)"/>
+  <rect x="846" y="602" width="134" height="39" rx="19.5" fill="url(#rows)"/>
+  <rect x="788" y="814" width="86" height="139" rx="18" fill="#41a7fc"/>
+  <rect x="894" y="753" width="86" height="200" rx="18" fill="url(#blue)"/>
+  <rect x="999" y="657" width="90" height="296" rx="18" fill="#007fff"/>
+  <rect x="748" y="938" width="361" height="31" rx="15.5" fill="url(#window)"/>
+  <!-- Tail, then a white separation around the silhouette where it meets the sheet. -->
+  <path d="M297 772 C264 740 214 723 174 739 C118 755 89 801 89 852 C89 931 152 999 219 1022 L298 947 L335 815Z" fill="url(#tail)"/>
+  <path d="M155 748 C124 791 152 864 225 903 L273 810 C242 763 196 733 155 748Z" fill="#713926" opacity=".35"/>
+  <path d="M299 765 L321 726 C272 702 277 638 316 611 C347 589 385 592 415 615 L448 650 L410 709 L343 789 L331 807Z" fill="#fff"/>
+  <path d="M349 696 L414 647 L457 803 L393 872 L257 839Z" fill="#a34622"/>
+  <path d="M438 650 C421 617 396 600 370 605 C330 611 307 639 311 676 C314 704 332 719 352 724 L409 702Z" fill="url(#ear)"/>
+  <!-- Head: the ear is behind the curved cheek; the muzzle slopes down to the collar. -->
+  <path d="M353 784 C352 729 382 681 439 649 C427 623 413 617 417 618 C457 595 484 594 509 600 C573 605 635 650 682 694 C709 721 716 762 703 802 C685 858 646 893 592 908 C554 920 494 917 438 892 C389 871 353 835 353 784Z" fill="url(#fur)"/>
+  <path d="M664 745 C689 722 710 729 709 759 C708 803 691 835 668 861 L652 801Z" fill="#a54b25"/>
+  <path d="M562 839 C593 823 633 802 671 771 L686 751 C688 795 680 839 652 865 C625 890 584 880 562 839Z" fill="#3e2119"/>
+  <path d="M627 809 L649 797 L670 810 L665 860 C653 872 640 878 627 879Z" fill="#fff"/>
+  <path d="M649 797 L670 810 L665 860 L657 868 L657 805Z" fill="#f1f2f3"/>
+  <path d="M438 891 C471 829 499 785 548 750 C585 724 625 715 655 709 C677 705 687 717 682 739 C678 781 633 807 567 840 L548 907 C514 921 475 906 438 891Z" fill="url(#muzzle)"/>
+  <circle cx="533" cy="701" r="25" fill="#071f30"/>
+  <path d="M645 706 C663 701 690 700 707 706 C720 711 719 722 710 738 L692 758 C687 764 680 764 674 758 L645 728 C637 719 636 710 645 706Z" fill="#061c2c"/>
+  <!-- Jacket and shirt. All lower edges share the same baseline as the frame. -->
+  <path d="M259 838 L301 846 L433 907 L504 920 L593 895 C641 916 674 953 690 1028 H227 Q216 1028 209 1023Z" fill="url(#suit)"/>
+  <path d="M259 838 L301 846 L321 918 L379 923 L352 951 L383 981 L429 1028 H229Z" fill="#153e71"/>
+  <path d="M593 895 L626 948 L605 969 L632 988 L587 1028 H547Z" fill="#123867"/>
+  <path d="M301 846 L504 917 L594 895 L577 980 L557 1028 H490 L458 977Z" fill="#fff"/>
+  <path d="M504 917 L459 969 L475 989 L516 946 L554 981 L577 954 L594 895 L544 927Z" fill="#edf2fa"/>
+  <path d="M504 917 L554 938 L537 965 L503 967 L482 941Z" fill="#0086ff"/>
+  <path d="M503 967 L537 965 L557 1028 H490Z" fill="#007dff"/>
+  <path d="M503 967 L514 971 L510 1028 H490Z" fill="#0065df"/>
+</svg>

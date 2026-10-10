@@ -27,7 +27,7 @@ Preferences default to 50,000 rows and 1,000,000 cells per snapshot. The lower
 budget determines the effective row count. Widget query snapshots obey the same
 limits.
 
-Dashboard query timeout defaults to 30 seconds (Preferences > ECharts, 1–3600).
+Dashboard query timeout defaults to 30 seconds (Preferences > BeaverCanvas, 1–3600).
 It applies when a job starts running; waiting jobs do not use execution slots.
 Java sets the driver's statement timeout and schedules a cancellation deadline.
 Stop requests `DBCStatement.cancelBlock` off the UI thread. Actual interruption,

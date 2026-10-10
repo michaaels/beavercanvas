@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.6.1 beta — unreleased
+
+- Rename the public product to **BeaverCanvas Plugin for DBeaver Desktop**, focused
+  on SQL dashboards and a visual report designer. Update installer, preferences,
+  result tab, dialogs, About page, documentation and public packaging names.
+- Add an editable vector beaver/dashboard illustration, a simplified small-size
+  mark and transparent PNGs, including Eclipse high-DPI variants.
+- Preserve bundle/feature/extension IDs, preferences, JSON markers, schema versions,
+  file extensions, SQL companion headers and existing workspace folders.
+- Add a checksum-pinned upgrade test from the actual published 0.6.0 beta alongside
+  the existing 0.5.0 baseline. This entry does not publish or modify past releases.
+
 ## 0.6.0 beta — 2026-10-10
 
 - Diseñador visual con gráficos, KPIs, tablas, imágenes y secciones; plantillas

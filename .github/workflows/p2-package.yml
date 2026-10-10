@@ -77,15 +77,23 @@ jobs:
           if ($previous.Count -ne 1 -or $current.Count -ne 1) { throw 'Expected one archive per build' }
           ./scripts/test-p2-install.ps1 -DistributionZip .dev/ci-target/dbeaver-ce-26.2.2-windows-x86_64.zip -PreviousRepositoryZip $previous[0].FullName -RepositoryZip $current[0].FullName -Destination .dev/ci-installed
           Copy-Item -LiteralPath .dev/ci-installed/p2-test-result.json -Destination dist/p2-test-result.json
+      - name: Upgrade the exact published 0.6.0 beta to BeaverCanvas
+        run: |
+          $previous = ./scripts/fetch-upgrade-release.ps1
+          $current = @(Get-ChildItem dist -Filter 'beavercanvas-*.zip')
+          if ($current.Count -ne 1) { throw 'Expected one BeaverCanvas archive' }
+          ./scripts/test-p2-install.ps1 -DistributionZip .dev/ci-target/dbeaver-ce-26.2.2-windows-x86_64.zip -PreviousRepositoryZip $previous -RepositoryZip $current[0].FullName -Destination .dev/ci-rebrand-installed
+          Copy-Item -LiteralPath .dev/ci-rebrand-installed/p2-test-result.json -Destination dist/published-upgrade-test-result.json
       - name: Upload verified installer
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: dbeaver-echarts-p2-windows-${{ github.sha }}
+          name: beavercanvas-p2-windows-${{ github.sha }}
           path: |
             dist/*.zip
             dist/*.sha256
             dist/*/build-info.json
             dist/p2-test-result.json
+            dist/published-upgrade-test-result.json
           if-no-files-found: error
           retention-days: 14
       - name: Upload failure diagnostics
@@ -114,7 +122,7 @@ jobs:
           node-version: '22'
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: dbeaver-echarts-p2-windows-${{ github.sha }}
+          name: beavercanvas-p2-windows-${{ github.sha }}
           path: .dev/linux-installer
       - name: Prepare Linux DBeaver and browser dependencies
         run: |
@@ -131,7 +139,7 @@ jobs:
       - name: Install the shared P2 artifact in Linux DBeaver
         run: |
           product="$PWD/.dev/linux-target/dbeaver"
-          archive=$(find .dev/linux-installer -name 'dbeaver-echarts-*.zip' -print -quit)
+          archive=$(find .dev/linux-installer \( -name 'beavercanvas-*.zip' -o -name 'dbeaver-echarts-*.zip' \) -print -quit)
           test -n "$archive"
           unzip -q "$archive" -d .dev/linux-repository
           launcher=$(find "$product/plugins" -name 'org.eclipse.equinox.launcher_*.jar' -print -quit)
@@ -143,7 +151,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: dbeaver-echarts-linux-tests-${{ github.sha }}
+          name: beavercanvas-linux-tests-${{ github.sha }}
           include-hidden-files: true
           path: |
             .dev/linux-tests.log

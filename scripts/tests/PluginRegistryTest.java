@@ -56,6 +56,22 @@ public final class PluginRegistryTest {
                 }
             }
             Object registry = platform.getMethod("getExtensionRegistry").invoke(null);
+            boolean branded = plugin.getVersion().compareTo(new org.osgi.framework.Version("0.6.1")) >= 0;
+            if (branded) {
+                if (!"BeaverCanvas Plugin for DBeaver Desktop".equals(plugin.getHeaders().get("Bundle-Name"))) throw new AssertionError("Installed bundle name is stale");
+                if (!"michaaels".equals(plugin.getHeaders().get("Bundle-Vendor"))) throw new AssertionError("Installed provider is missing");
+                for (String icon : new String[] { "beavercanvas.svg", "beavercanvas-mark.svg", "beavercanvas-16.png", "beavercanvas-32.png", "beavercanvas-128.png" }) {
+                    if (plugin.getEntry("web/assets/" + icon) == null) throw new AssertionError("Packaged brand asset missing: " + icon);
+                }
+                // Decode the packaged PNGs with SWT's image loader, not just a filesystem check.
+                for (int size : new int[] { 16, 20, 24, 32, 48, 64, 128, 256, 512 }) assertIcon(plugin, "beavercanvas-" + size + ".png", size);
+                assertIcon(plugin, "beavercanvas-16@1.5x.png", 24);
+                assertIcon(plugin, "beavercanvas-16@2x.png", 32);
+                assertLabel(registry, "org.jkiss.dbeaver.resultset.presentation", "resultset.echarts", "label", "BeaverCanvas");
+                assertLabel(registry, "org.eclipse.ui.preferencePages", "org.example.dbeaver.echarts.preferences", "name", "BeaverCanvas");
+                assertLabel(registry, "org.eclipse.ui.views", "org.example.dbeaver.echarts.views", "name", "BeaverCanvas");
+                assertLabel(registry, "org.eclipse.ui.editors", "org.example.dbeaver.echarts.dashboardEditor", "name", "BeaverCanvas dashboard");
+            }
             boolean editor = false, handler = false, reportEditor = false, reportHandler = false, reportView = false;
             for (String point : new String[] { "org.eclipse.ui.editors", "org.jkiss.dbeaver.resourceHandler", "org.eclipse.ui.views" }) {
                 Object[] elements = (Object[]) call(registry, "getConfigurationElementsFor", new Class<?>[] { String.class }, point);
@@ -87,6 +103,29 @@ public final class PluginRegistryTest {
     private static Bundle bundle(Bundle[] bundles, String name) {
         for (Bundle bundle : bundles) if (name.equals(bundle.getSymbolicName())) return bundle;
         throw new IllegalStateException("Missing bundle " + name);
+    }
+    private static void assertLabel(Object registry, String point, String id, String attribute, String expected) throws Exception {
+        Object[] elements = (Object[]) call(registry, "getConfigurationElementsFor", new Class<?>[] { String.class }, point);
+        for (Object element : elements) {
+            if (!id.equals(call(element, "getAttribute", new Class<?>[] { String.class }, "id"))) continue;
+            if (!expected.equals(call(element, "getAttribute", new Class<?>[] { String.class }, attribute))) throw new AssertionError("Stale label for " + id);
+            Object icon = call(element, "getAttribute", new Class<?>[] { String.class }, "icon");
+            if (icon != null && !"web/assets/beavercanvas-16.png".equals(icon)) throw new AssertionError("Stale icon for " + id);
+            return;
+        }
+        throw new AssertionError("Legacy extension ID lost: " + id);
+    }
+    private static void assertIcon(Bundle plugin, String name, int size) throws Exception {
+        var resource = plugin.getEntry("web/assets/" + name);
+        if (resource == null) throw new AssertionError("Packaged icon missing: " + name);
+        Class<?> loader = plugin.loadClass("org.eclipse.swt.graphics.ImageLoader");
+        try (var stream = resource.openStream()) {
+            Object[] decoded = (Object[]) loader.getMethod("load", java.io.InputStream.class).invoke(loader.getConstructor().newInstance(), stream);
+            if (decoded.length != 1) throw new AssertionError("Invalid icon: " + name);
+            Object data = decoded[0];
+            if (data.getClass().getField("width").getInt(data) != size || data.getClass().getField("height").getInt(data) != size) throw new AssertionError("Wrong icon size: " + name);
+            if (!Integer.valueOf(0).equals(call(data, "getAlpha", new Class<?>[] { int.class, int.class }, 0, 0))) throw new AssertionError("Icon background is not transparent: " + name);
+        }
     }
     private static Object call(Object object, String method, Class<?>[] parameters, Object... args) throws Exception {
         var operation = object.getClass().getMethod(method, parameters);

@@ -14,5 +14,5 @@ public final class ReportResourceHandler extends AbstractResourceHandler {
         if (resource instanceof IFile file) PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage().openEditor(new FileEditorInput(file), ReportEditor.ID);
         else super.openResource(resource);
     }
-    @Override public String getTypeName(IResource resource) { return "ECharts report template"; }
+    @Override public String getTypeName(IResource resource) { return "BeaverCanvas report template"; }
 }

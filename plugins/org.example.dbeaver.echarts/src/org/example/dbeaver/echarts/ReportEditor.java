@@ -40,7 +40,7 @@ public final class ReportEditor extends EditorPart {
                 file = Path.of(uri.getURI());
                 project = DBWorkbench.getPlatform().getWorkspace().getProjects().stream().map(item -> (DBPProject) item)
                     .filter(item -> file.startsWith(item.getAbsolutePath())).findFirst().orElse(DBWorkbench.getPlatform().getWorkspace().getActiveProject());
-            } else throw new IllegalArgumentException("Open a local ECharts report template JSON.");
+            } else throw new IllegalArgumentException("Open a local BeaverCanvas report template JSON.");
             document = savedDocument = ReportFiles.read(file); diskText = Files.readString(file, StandardCharsets.UTF_8);
             setPartName(file.getFileName().toString());
         } catch (Exception error) { throw new PartInitException("Cannot open report template: " + error.getMessage(), error); }

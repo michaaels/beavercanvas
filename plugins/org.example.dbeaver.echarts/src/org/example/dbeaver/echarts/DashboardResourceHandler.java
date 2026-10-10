@@ -23,5 +23,5 @@ public final class DashboardResourceHandler extends AbstractResourceHandler {
     }
 
     @Override
-    public String getTypeName(IResource resource) { return "ECharts dashboard"; }
+    public String getTypeName(IResource resource) { return "BeaverCanvas dashboard"; }
 }
