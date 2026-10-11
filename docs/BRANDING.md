@@ -17,7 +17,10 @@ not a pixel-identical reproduction of the raster texture. No embedded bitmap,
 font, linked image, official DBeaver logo or Apache ECharts logo is used.
 
 The [small mark](../plugins/org.example.dbeaver.echarts/web/assets/beavercanvas-mark.svg)
-reduces the detail to the beaver, tooth and chart bars for 16–32px UI icons.
+is drawn specifically for 16–32px UI icons. It keeps the analyst's tail, suit,
+blue tie and white tooth, plus the dashboard's header, pie and bar charts.
+An enlarged mascot and solid contrasting shapes preserve the identity at small
+sizes without relying on the illustration's fine gradients.
 The full illustration is used at 48–512px. PNGs have transparent backgrounds.
 Eclipse uses `beavercanvas-16.png` and the `@1.5x` / `@2x` siblings for high-DPI.
 The HTML pages use the 32px favicon. README and About use larger illustrations.

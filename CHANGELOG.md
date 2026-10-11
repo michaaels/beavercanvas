@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Refine the 16–32px BeaverCanvas icons to retain the analyst's tail, suit, blue
+  tie and tooth alongside pie/bar charts; regenerate the 150%/200% UI variants.
+
 ## 0.6.1 beta — 2026-10-10
 
 - Rename the public product to **BeaverCanvas Plugin for DBeaver Desktop**, focused

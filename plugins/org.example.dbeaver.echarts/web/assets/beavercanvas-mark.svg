@@ -1,13 +1,31 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-labelledby="title">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-labelledby="title description">
   <title id="title">BeaverCanvas</title>
-  <!-- Pixel-conscious silhouette: beaver, white tooth and three blue chart bars. -->
-  <rect x="2" y="3" width="28" height="26" rx="5" fill="#0b2d4d"/>
-  <path d="M5 8 H27 V26 H5Z" fill="#fff"/>
-  <path d="M21 18 H23 V25 H21Z M24 14 H26 V25 H24Z M18 21 H20 V25 H18Z" fill="#0085ff"/>
-  <circle cx="9" cy="13" r="4" fill="#50251c"/>
-  <path d="M5 25 C4 20 8 14 12 12 C16 10 20 13 22 16 L20 20 C18 24 13 27 8 26Z" fill="#c96c31"/>
-  <path d="M11 25 C13 20 17 17 20 17 L21 19 C19 22 16 23 14 26Z" fill="#ffbd76"/>
-  <path d="M17 22 H20 V25 H17Z" fill="#fff"/>
-  <circle cx="15" cy="16" r="1.6" fill="#071f30"/>
-  <path d="M19 16 H23 L21 20Z" fill="#071f30"/>
+  <desc id="description">A beaver analyst with a blue tie, tail and white tooth in front of pie and bar charts.</desc>
+  <!-- Optical small-size drawing: enlarged mascot, solid features and a full-height dashboard. -->
+  <rect x="9" y="1" width="22" height="29" rx="3.5" fill="#0b2d4d"/>
+  <circle cx="12" cy="3.5" r="1" fill="#007fff"/>
+  <circle cx="15" cy="3.5" r="1" fill="#41a7fc"/>
+  <circle cx="18" cy="3.5" r="1" fill="#c4e5fd"/>
+  <rect x="10.5" y="6" width="19" height="22" rx="2" fill="#fff"/>
+  <path d="M21 7.5 A4.5 4.5 0 1 0 24.5 15 L21 11.5Z" fill="#007fff"/>
+  <path d="M22 7 A4.5 4.5 0 0 1 25.5 14 L22 11.5Z" fill="#8bc8ff"/>
+  <path d="M22 24 H24 V27 H22Z M25 21 H27 V27 H25Z M28 17 H30 V27 H28Z" fill="#007fff"/>
+  <path d="M21.5 28 H29.5" stroke="#0b2d4d" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- Tail and white separation keep the beaver readable against the chart sheet. -->
+  <path d="M8 23 C5 18 1 20 1 24 C1 28 3.5 30 6.5 31 L10 27Z" fill="#633323"/>
+  <path d="M8 23 C5 18 1 20 1 24 C1 26 3 27.5 5.5 28Z" fill="#7b412a"/>
+  <path d="M5 30 L8 22 C4 21 4 15 7 13 C10 11 12 13 13 14 C18 13 21 16 24 18 C27 20 24 25 21 27 L22 31 H5Z" fill="#fff"/>
+  <path d="M7 24 L8.5 20 L13 24 L11 28Z" fill="#a94d24"/>
+  <path d="M11 15 C10 12 7 12 5.5 14 C4 16 5 19 8 19Z" fill="#50251c"/>
+  <path d="M7 21 C7 18 9 15.5 12 14 C16 13 19 15 22 17.5 C25 20 24 24 21 26 C18 28 12 27 9 25 C7.5 24 7 22.5 7 21Z" fill="#cc6b2f"/>
+  <path d="M19 22 L23 21.5 C23.5 24 22 26 19 27 L17 25Z" fill="#3e2119"/>
+  <path d="M20 23 L22.5 22.5 L22 26 L20 27Z" fill="#fff"/>
+  <path d="M12 26 C14 22 17 20 21 19 C23.5 18 24 19.5 23 21 C21 23 18 24 17 26 L16.5 27Z" fill="#ffbc70"/>
+  <circle cx="16" cy="18" r="1.4" fill="#071f30"/>
+  <path d="M22 17.5 H25 C26 17.5 26 18.5 25 19.5 L23.5 21 L21.5 19 C21 18.5 21 17.5 22 17.5Z" fill="#071f30"/>
+  <!-- The shirt and tie identify the analyst, rather than a generic animal head. -->
+  <path d="M7 25 L12 26.5 L17 27 L19 25.5 C21 27 22 29 22 31 H4Z" fill="#103867"/>
+  <path d="M8 25.5 L14 27 L19 25.5 L17 31 H13Z" fill="#fff"/>
+  <path d="M14 27 L17 28 L16 29 H14.5 L13 28Z M14.5 29 H16 L17 31 H14Z" fill="#007fff"/>
+  <path d="M7 25 L8 28 L11 29 L10 31 H4Z M19 25.5 L20 28 L18.5 29 L20 30 L19 31 H17Z" fill="#1d497e"/>
 </svg>
