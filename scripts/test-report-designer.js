@@ -41,6 +41,29 @@ async function main() {
     await page.goto(pathToFileURL(path.join(web, 'report.html')).href);
     const document = () => page.evaluate(() => window.DBeaverECharts.reportDocument());
     const properties = page.locator('#componentProperties');
+    const uxScreenshots = path.join(root, '.dev/screenshots'); fs.mkdirSync(uxScreenshots, { recursive: true });
+    assert.equal(await page.locator('#reportData').isVisible(), false, 'Secondary actions start inside their group');
+    await page.locator('#reportDataMenu > summary').click();
+    await page.keyboard.press('Escape');
+    assert.equal(await page.locator('#reportDataMenu').evaluate(menu => menu.open), false);
+    assert.equal(await page.locator('#reportDataMenu > summary').evaluate(control => document.activeElement === control), true);
+    await page.screenshot({ path: path.join(uxScreenshots, 'report-ux-empty.png') });
+    await page.setViewportSize({ width: 600, height: 700 });
+    for (const id of ['reportFileMenu', 'reportLayoutMenu', 'reportDataMenu', 'reportExportMenu']) {
+      await page.locator(`#${id} > summary`).click();
+      await page.waitForFunction(id => {
+        const box = document.querySelector(`#${id} .report-action-panel`).getBoundingClientRect();
+        return box.left >= 0 && box.right <= innerWidth;
+      }, id);
+      await page.keyboard.press('Escape');
+    }
+    await page.screenshot({ path: path.join(uxScreenshots, 'report-ux-narrow.png') });
+    await page.setViewportSize({ width: 1700, height: 1100 });
+    await page.locator('#reportStartChart').click();
+    assert.equal(await page.locator('#widgetEditorQueryTab').getAttribute('aria-selected'), 'true');
+    assert.equal(await page.evaluate(() => window.testQueries.length), 0, 'The empty-state action does not run SQL');
+    await page.locator('#widgetEditorCancel').click();
+    assert.equal((await document()).widgets.length, 0, 'Cancelling the first chart leaves the report empty');
     // Reproduce the gap left after deleting a component above existing content.
     await page.evaluate(() => {
       const M = window.DBeaverReportModel, report = M.create('Delete regression');
@@ -59,12 +82,15 @@ async function main() {
     await page.locator('#reportTitle').fill('Reporte diario de ventas');
     await page.locator('[data-component-type="heading"]').click();
     await properties.getByLabel('Text', { exact: true }).fill('Ventas · {{start_date}}');
+    assert.equal(await properties.getByLabel('Text', { exact: true }).isVisible(), true);
+    assert.equal(await properties.getByLabel('Column', { exact: true }).isVisible(), false, 'Detailed layout is initially folded');
+    assert.equal(await properties.getByLabel('Border width', { exact: true }).isVisible(), false, 'Appearance is initially folded');
     const headingLayout = (await document()).widgets[0].layout;
     await page.locator('[data-component-type="image"]').click();
     assert.deepEqual((await document()).widgets[0].layout, headingLayout, 'Click-to-add preserves existing positions');
     await properties.getByRole('button', { name: 'Choose local image', exact: true }).click();
     assert.ok((await document()).widgets.find(widget => widget.type === 'image').config.image.startsWith('data:image/png'));
-    await page.locator('#reportParameters').click();
+    await page.locator('#reportDataMenu > summary').click(); await page.locator('#reportParameters').click();
     await page.locator('#addReportParameter').click();
     await page.locator('#reportParameterList').getByLabel('Name', { exact: true }).fill('start_date');
     await page.locator('#reportParameterHeading').click();
@@ -74,7 +100,7 @@ async function main() {
     await page.locator('#reportParameterList').getByLabel('Current value', { exact: true }).fill('2026-10-01');
     await page.locator('#reportParameterHeading').click();
     await page.locator('[data-close="reportParameterDialog"]').click();
-    await page.locator('#reportData').click(); await page.locator('#addReportSource').click();
+    await page.locator('#reportDataMenu > summary').click(); await page.locator('#reportData').click(); await page.locator('#addReportSource').click();
     await page.locator('#reportSourceForm').getByLabel('Query name', { exact: true }).fill('Ventas diarias');
     await page.locator('#reportSourceForm').getByLabel('Connection', { exact: true }).selectOption('0');
     const sql = 'SELECT fecha, ventas, costos FROM ventas_demo WHERE fecha >= :start_date';
@@ -86,6 +112,7 @@ async function main() {
     await properties.getByRole('button', { name: 'Configure chart and preview SQL' }).click();
     await page.locator('#widgetEditorRun').click();
     await page.waitForFunction(() => document.querySelector('#widgetEditorStatus').textContent.includes('16 rows'));
+    await page.locator('#widgetEditorChooseChart').click();
     await page.locator('#widgetEditorName').fill('Ventas y costos diarios');
     await page.getByLabel('Series costos', { exact: true }).check();
     await page.getByLabel('Axis costos', { exact: true }).selectOption('right');
@@ -112,11 +139,13 @@ async function main() {
     await properties.getByLabel('Subtotal group', { exact: true }).selectOption('fecha');
     assert.equal(await page.locator('#reportCanvas .report-total').count(), 34, '16 groups plus total, label and values per group');
     await properties.getByLabel('Subtotal group', { exact: true }).selectOption('');
+    await properties.locator('[data-property-section="Conditional visibility"] > summary').click();
     await properties.getByLabel('Condition column (first row)', { exact: true }).selectOption('ventas');
     await properties.getByLabel('Show only when condition matches', { exact: true }).check();
     await properties.getByLabel('Condition', { exact: true }).selectOption('gt');
     await properties.getByLabel('Compare to', { exact: true }).fill('999999');
     await page.locator('#previewReport').click();
+    assert.equal(await page.evaluate(() => window.testQueries.length), previewQueries, 'Preview layout must not execute SQL');
     assert.equal(await page.locator('#reportPreviewCanvas .report-table').count(), 0, 'Conditional visibility is applied to preview');
     await page.locator('[data-close="reportPreviewDialog"]').click();
     await properties.getByLabel('Show only when condition matches', { exact: true }).uncheck();
@@ -142,18 +171,20 @@ async function main() {
     // Reserve empty rows first so intermediate edits do not displace finished components.
     for (const widget of arranged.widgets) {
       await page.locator(`[data-layer-id="${widget.id}"]`).click();
+      await properties.locator('[data-property-section="Position and size"] > summary').click();
       await properties.getByLabel('Row', { exact: true }).fill(String(100 + arranged.widgets.indexOf(widget) * 30));
       await properties.getByLabel('Row', { exact: true }).press('Tab');
     }
     for (const widget of arranged.widgets) {
       await page.locator(`[data-layer-id="${widget.id}"]`).click();
+      await properties.locator('[data-property-section="Position and size"] > summary').click();
       for (const [name, label] of [['width', 'Width (columns)'], ['height', 'Height (rows)'], ['x', 'Column'], ['y', 'Row']]) {
         await properties.getByLabel(label, { exact: true }).fill(String(layouts[widget.type][name]));
         await properties.getByLabel(label, { exact: true }).press('Tab');
       }
     }
     assert.deepEqual((await document()).widgets.find(widget => widget.type === 'heading').layout, layouts.heading);
-    await page.locator('#generateReport').click();
+    await page.locator('#reportDataMenu > summary').click(); await page.locator('#generateReport').click();
     assert.equal(await page.locator('#reportReviewQueries .report-review-query').count(), 1, 'Shared SQL executes once');
     assert.match(await page.locator('#reportReviewQueries').textContent(), /start_date \(date\): 2026-10-01/);
     await page.locator('#runReportQueries').click();
@@ -168,9 +199,9 @@ async function main() {
     assert.equal(saved.parameters[0].default, '2026-10-01');
     assert.ok(!('rows' in saved) && !('snapshots' in saved));
     for (const mode of ['interactive', 'email', 'template']) {
-      await page.locator('#exportReport').click(); await page.locator('#reportExportFormat').selectOption(mode); await page.locator('#saveReportExport').click();
+      await page.locator('#reportExportMenu > summary').click(); await page.locator('#exportReport').click(); await page.locator('#reportExportFormat').selectOption(mode); await page.locator('#saveReportExport').click();
     }
-    await page.locator('#outlookReport').click();
+    await page.locator('#reportExportMenu > summary').click(); await page.locator('#outlookReport').click();
     const emailPreview = page.frameLocator('#reportEmailPreview');
     await emailPreview.getByText('Ventas y costos diarios', { exact: true }).waitFor();
     assert.ok(await emailPreview.locator('img').evaluateAll(images => images.every(image => image.complete && image.naturalWidth > 0)), 'Email preview includes loaded chart and logo images');
@@ -268,6 +299,18 @@ async function main() {
     assert.ok(tableMail.limited.rows < 47, 'Height bounds a manually larger page');
     assert.equal(tableMail.expanded.rows, 47, 'A manually enlarged height and page can display more rows');
     assert.ok(!/<button|<script|<canvas/.test(tableMail.selected.html), 'Static email contains no inactive pagination buttons');
+    await page.evaluate(() => window.DBeaverECharts.loadReport(window.DBeaverReportModel.create('First chart flow')));
+    await page.locator('#reportStartChart').click();
+    await page.locator('#widgetEditorConnection').selectOption('0');
+    await page.locator('#widgetEditorSql').fill('SELECT fecha, ventas, costos FROM first_chart');
+    assert.equal((await document()).widgets.length, 0, 'A new chart remains a detached draft until Apply');
+    await page.locator('#widgetEditorRun').click();
+    await page.waitForFunction(() => document.querySelector('#widgetEditorStatus').textContent.includes('16 rows'));
+    await page.locator('#widgetEditorChooseChart').click();
+    await page.locator('#widgetEditorSave').click();
+    assert.equal((await document()).widgets.length, 1);
+    assert.equal((await document()).sources[0].sql, 'SELECT fecha, ventas, costos FROM first_chart');
+    assert.equal(await page.locator('#reportCanvas .report-chart canvas').count(), 1, 'Applying the first chart reuses its preview');
     console.log('Report Designer OK: visual authoring, image, shared typed SQL, ECharts preview, KPI/table, totals, keyboard layout, undo/redo, duplicate/delete, save/reopen, offline HTML, static email and CID/attachment EML');
     console.log(screenshot);
   } finally { await browser.close(); }

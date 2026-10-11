@@ -300,6 +300,8 @@ builder.document.getElementById('widgetEditorSql').value = draftSql;
 builder.document.getElementById('widgetEditorSql').dispatchEvent(new builder.window.Event('input'));
 builder.click('widgetEditorRun');
 const cancelledPreview = builder.queries.at(-1);
+builder.click('widgetEditorChartTab');
+assert.equal(builder.document.getElementById('widgetEditorStop').hidden, false, 'Stop stays accessible while navigating setup');
 builder.click('widgetEditorStop');
 builder.api.setWidgetSnapshot(cancelledPreview.id, independentSnapshot);
 assert.match(builder.document.getElementById('widgetEditorStatus').textContent, /stopped/);

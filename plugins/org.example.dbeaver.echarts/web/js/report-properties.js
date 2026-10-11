@@ -15,9 +15,19 @@
   function section(root, title) { const body = node('section', undefined, 'report-property-section'); body.append(node('h3', title)); root.append(body); return body; }
   function render(root, report, selectedIds, snapshots, hooks) {
     const openColumns = new Set([...root.querySelectorAll('.report-column-config[open]')].map(element => element.dataset.columnName));
+    const openSections = new Set([...root.querySelectorAll('details[data-property-section][open]')].map(element => element.dataset.propertySection));
+    const previousItem = root.dataset.selectedItem;
     root.replaceChildren();
     const selected = report.widgets.filter(widget => selectedIds.has(widget.id));
     const item = selected[0];
+    root.dataset.selectedItem = item?.id || '';
+    const advancedSection = title => {
+      const body = node('details', undefined, 'report-property-section');
+      body.dataset.propertySection = title;
+      body.open = previousItem === item.id && openSections.has(title);
+      body.append(node('summary', title));
+      return body;
+    };
     const change = (action, key, textEdit = false) => hooks.change(action, { mergeKey: key, render: !textEdit });
     if (!item) {
       root.append(field('Description', report.description, 'textarea', value => change(draft => { draft.description = value; }, 'report.description', true)),
@@ -42,7 +52,7 @@
       change(draft => { const widget = draft.widgets.find(widget => widget.id === item.id); fieldName(widget, value); draft.priorityId = item.id; }, key && `${item.id}.${key}`, textEdit);
     }
     root.append(field('Component title', item.title, 'text', value => update((widget, value) => { widget.title = value; }, value, 'title', true)));
-    const position = section(root, 'Position and size'), grid = node('div', undefined, 'report-property-grid');
+    const position = advancedSection('Position and size'), grid = node('div', undefined, 'report-property-grid');
     for (const [name, label] of [['x', 'Column'], ['y', 'Row'], ['width', 'Width (columns)'], ['height', 'Height (rows)']]) {
       grid.append(field(label, item.layout[name], 'number', value => update((widget, value) => { widget.layout[name] = value; }, value)));
     }
@@ -50,7 +60,7 @@
     const containers = report.widgets.filter(widget => ['section', 'header', 'footer'].includes(widget.type) && widget.id !== item.id);
     position.append(field('Section', item.parentId || '', 'select', value => update((widget, value) => { widget.parentId = value || null; widget.layout.x = 0; widget.layout.y = 0; }, value),
       [['', 'Report sheet'], ...containers.map(widget => [widget.id, widget.title])]), button('Move earlier', () => hooks.order(-1)), button('Move later', () => hooks.order(1)));
-    const style = section(root, 'Appearance');
+    const style = advancedSection('Appearance');
     style.append(field('Text color', item.style.color, 'color', value => update((widget, value) => { widget.style.color = value; }, value, 'color', true)),
       field('Background', item.style.background === 'transparent' ? '#ffffff' : item.style.background, 'color', value => update((widget, value) => { widget.style.background = value; }, value, 'background', true)),
       field('Transparent background', item.style.background === 'transparent', 'checkbox', value => update((widget, value) => { widget.style.background = value ? 'transparent' : '#ffffff'; }, value)));
@@ -129,12 +139,13 @@
       } else body.append(node('p', 'Refresh data to choose and format columns.', 'report-placeholder'));
     }
     if (item.sourceId) {
-      const body = section(root, 'Conditional visibility');
+      const body = advancedSection('Conditional visibility'); root.append(body);
       body.append(field('Show only when condition matches', item.config.visibility.enabled, 'checkbox', value => update((widget, value) => { widget.config.visibility.enabled = value; }, value)),
         field('Condition column (first row)', item.config.visibility.column, 'select', value => update((widget, value) => { widget.config.visibility.column = value; }, value), [['', 'Choose a column'], ...names]),
         field('Condition', item.config.visibility.operator, 'select', value => update((widget, value) => { widget.config.visibility.operator = value; }, value), [['notEmpty', 'Not empty'], ['gt', 'Greater than'], ['lt', 'Less than'], ['eq', 'Equals']]),
         field('Compare to', item.config.visibility.value, 'text', value => update((widget, value) => { widget.config.visibility.value = value; }, value, 'visibility.value', true)));
     }
+    root.append(style, position);
   }
   window.DBeaverReportProperties = Object.freeze({ field, button, section, render });
 })();

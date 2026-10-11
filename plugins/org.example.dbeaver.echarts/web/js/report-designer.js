@@ -415,8 +415,12 @@
   }
   function editChart() {
     const item = first(); if (!item || item.type !== 'chart') return;
+    openChart(item);
+  }
+  function openChart(item, newComponent = false) {
     const existing = current().sources.find(source => source.id === item.sourceId), source = existing || M.source({ id: M.id('source') });
     window.DBeaverWidgetEditor.open({ widget: { id: item.id, title: item.title, source, chart: item.config.chart, refreshPolicy: { mode: 'manual', intervalSeconds: 0 } },
+      componentName: 'chart',
       snapshot: execution.state().snapshots[item.sourceId], isNew: !existing, theme: { ...theme, background: '#ffffff', foreground: '#243447', muted: '#657487', controlBackground: '#f6f8fa' }, renderer: 'canvas',
       runPreview(id, source) {
         const runtime = M.runtimeSource(current(), source, values);
@@ -426,11 +430,17 @@
       save(draft, snapshot, approved) {
         const sourceId = existing?.id || source.id;
         const ok = change(document => {
+            if (newComponent) {
+              const widget = M.clone(item);
+              widget.layout.y = Math.max(0, ...document.widgets.filter(widget => !widget.parentId).map(widget => widget.layout.y + widget.layout.height));
+              document.widgets.push(widget); document.priorityId = widget.id;
+            }
           const widget = document.widgets.find(widget => widget.id === item.id), query = M.source({ ...draft.source, id: sourceId });
           if (existing) Object.assign(document.sources.find(source => source.id === sourceId), query); else document.sources.push(query);
           widget.sourceId = sourceId; widget.title = draft.title; widget.config.chart = { ...widget.config.chart, ...draft.chart };
         });
         if (!ok) throw new Error('The chart could not be applied. Check the report limits.');
+          if (newComponent) select(item.id);
         if (snapshot && (approved || existing && JSON.stringify(source) === JSON.stringify(draft.source))) execution.seed(sourceId, snapshot);
       }
     });
@@ -516,8 +526,15 @@
     document.addEventListener('dragover', event => { if (!event.target.closest('#reportCanvas')) clearDropPreview(); });
     document.addEventListener('keydown', event => { if (event.key === 'Escape' && libraryDrag) clearDropPreview(true); });
     window.addEventListener('blur', () => clearDropPreview(true));
-    const click = (id, action) => $(id).addEventListener('click', () => { try { action(); } catch (error) { status(error.message, true); } });
+    const click = (id, action) => $(id).addEventListener('click', () => {
+      const menu = $(id).closest('.report-action-menu');
+      if (menu) { menu.open = false; menu.querySelector('summary').focus(); }
+      try { action(); } catch (error) { status(error.message, true); }
+    });
     click('newReport', () => createDocument(M.create()));
+    click('reportStartChart', () => openChart(M.widget('chart'), true));
+    click('reportStartHeading', () => add('heading'));
+    click('reportStartTemplate', templates);
     click('openReport', () => window.dbeaverOpenReport?.());
     click('saveReport', () => save());
     click('duplicateReport', () => { const copy = M.clone(current()); copy.title += ' (copy)'; copy.defaultTemplate = false; createDocument(copy); });
@@ -535,6 +552,23 @@
     click('runReportQueries', () => { $('reportReviewDialog').close(); try { execution.run(current(), values, reviewed); } catch (error) { generating = false; throw error; } });
     $('reportReviewDialog').addEventListener('cancel', () => { generating = false; });
     click('previewReport', showPreview); click('exportReport', () => showDialog('reportExportDialog')); click('outlookReport', composeEmail); click('reportTemplates', templates);
+    const actionMenus = [...document.querySelectorAll('.report-action-menu')];
+    const closeMenus = (except = null) => actionMenus.forEach(menu => { if (menu !== except) menu.open = false; });
+    actionMenus.forEach(menu => {
+      menu.addEventListener('toggle', () => {
+        if (!menu.open) return;
+        closeMenus(menu);
+        const panel = menu.querySelector('.report-action-panel'), box = menu.getBoundingClientRect();
+        panel.style.left = `${Math.max(12, Math.min(box.left, window.innerWidth - panel.offsetWidth - 12)) - box.left}px`;
+      });
+    });
+    window.addEventListener('resize', () => closeMenus());
+    document.addEventListener('pointerdown', event => { if (!event.target.closest('.report-action-menu')) closeMenus(); });
+    document.addEventListener('keydown', event => {
+      if (event.key !== 'Escape') return;
+      const open = actionMenus.find(menu => menu.open);
+      if (open) { event.preventDefault(); event.stopImmediatePropagation(); closeMenus(); open.querySelector('summary').focus(); }
+    });
     $('reportEmailMessage').addEventListener('change', updateEmailPreview);
     click('saveReportExport', () => {
       const mode = $('reportExportFormat').value; exportFile(mode === 'template' ? JSON.stringify(current()) : exports()[mode](), mode); $('reportExportDialog').close();

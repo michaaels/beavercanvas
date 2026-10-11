@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Simplify Report Designer actions into File, Layout, Data and Export groups;
+  keep Save, Refresh data and Preview layout visible with explicit SQL behavior.
+- Guide chart setup through Query, Data and Chart, with keyboard navigation,
+  preserved drafts, inferred columns and cancellation available in every step.
+- Add actionable empty reports, show content/data properties before collapsible
+  appearance/layout controls, and improve label readability and narrow layouts.
 - Refine the 16–32px BeaverCanvas icons to retain the analyst's tail, suit, blue
   tie and tooth alongside pie/bar charts; regenerate the 150%/200% UI variants.
 

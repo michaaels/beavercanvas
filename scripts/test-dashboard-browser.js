@@ -141,8 +141,19 @@ async function main() {
     const independentSql = 'SELECT region, SUM(ventas) AS total_by_region FROM echarts_test_sales GROUP BY region';
     await page.locator('#widgetEditorSql').fill(independentSql);
     const countBeforePreview = await page.evaluate(() => window.testQueries.length);
+    await page.locator('#widgetEditorQueryTab').focus(); await page.keyboard.press('ArrowRight');
+    assert.equal(await page.locator('#widgetEditorDataTab').getAttribute('aria-selected'), 'true');
+    await page.keyboard.press('End');
+    assert.equal(await page.locator('#widgetEditorChartTab').getAttribute('aria-selected'), 'true');
+    await page.keyboard.press('Home');
+    assert.equal(await page.locator('#widgetEditorSql').inputValue(), independentSql, 'Navigating steps retains the SQL draft');
+    assert.equal(await page.evaluate(() => window.testQueries.length), countBeforePreview, 'Navigating setup never runs SQL');
     await page.locator('#widgetEditorRun').click();
     await page.waitForFunction(() => document.querySelector('#widgetEditorStatus').textContent.includes('2 rows'));
+    assert.equal(await page.locator('#widgetEditorDataTab').getAttribute('aria-selected'), 'true');
+    assert.equal(await page.locator('#widgetEditorData tr').count(), 3);
+    await page.screenshot({ path: path.join(root, '.dev/screenshots/widget-ux-data.png') });
+    await page.locator('#widgetEditorChooseChart').click();
     assert.equal(await page.locator('#widgetEditorCategory').inputValue(), 'region');
     assert.equal(await page.locator('#widgetEditorSeries input').isChecked(), true);
     await page.locator('#widgetEditorType').selectOption('bar');
@@ -167,10 +178,13 @@ async function main() {
     // Edit a query and returned column mapping, then cancel an uncommitted edit.
     const createdWidget = page.locator(`[data-widget-id="${created.id}"]`);
     await createdWidget.locator('.widget-edit').click();
+    await page.locator('#widgetEditorQueryTab').click();
     await page.locator('#widgetEditorSql').fill(independentSql + ' ORDER BY total_by_region DESC');
     await page.locator('#widgetEditorConnection').selectOption('1');
     await page.locator('#widgetEditorRun').click();
     await page.waitForFunction(() => document.querySelector('#widgetEditorStatus').textContent.includes('2 rows'));
+    assert.equal(await page.locator('#widgetEditorDataTab').getAttribute('aria-selected'), 'true');
+    await page.locator('#widgetEditorChooseChart').click();
     await page.locator('#widgetEditorType').selectOption('pie');
     await page.locator('#widgetEditorSave').click();
     const edited = await page.evaluate(() => window.DBeaverECharts.dashboardDocument().widgets.at(-1));
@@ -178,6 +192,7 @@ async function main() {
     assert.equal(edited.source.connectionId, 'other-id');
     assert.equal(edited.chart.chartType, 'pie');
     await createdWidget.locator('.widget-edit').click();
+    await page.locator('#widgetEditorQueryTab').click();
     await page.locator('#widgetEditorSql').fill('SELECT 999');
     await page.keyboard.press('Escape');
     assert.deepEqual(await page.evaluate(() => window.DBeaverECharts.dashboardDocument().widgets.at(-1)), edited);

@@ -32,6 +32,9 @@ Es una **beta sin firma**, con certificación de drivers, clientes de correo y m
 Consulta la [guía de instalación](docs/P2-UPDATE-SITE.md), la
 [matriz de compatibilidad](docs/COMPATIBILITY.md) y los [pendientes de producción](docs/PRODUCTION-READINESS.md).
 
+La [interfaz de la próxima versión](docs/UX-IMPROVEMENTS.md) incorpora acciones
+agrupadas y configuración de gráficos por etapas; incluye capturas del desarrollo.
+
 ## Funcionalidades en imágenes
 
 Capturas del frontend local de BeaverCanvas con datos de ejemplo, tomadas durante
