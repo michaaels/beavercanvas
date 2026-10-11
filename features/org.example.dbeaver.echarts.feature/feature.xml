@@ -2,7 +2,7 @@
 <feature
       id="org.example.dbeaver.echarts.feature"
       label="BeaverCanvas Plugin for DBeaver Desktop"
-      version="0.6.1.qualifier"
+      version="0.6.2.qualifier"
       provider-name="michaaels">
 
    <description>
