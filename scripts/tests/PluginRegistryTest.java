@@ -25,6 +25,7 @@ public final class PluginRegistryTest {
                 ? bundle(framework.getBundles(), "org.example.dbeaver.echarts")
                 : framework.installBundle(Path.of(args[4]).toUri().toString());
             plugin.start();
+            if (args.length > 6) framework.installBundle(Path.of(args[6]).toUri().toString()).start();
             if (plugin.getState() != Bundle.ACTIVE) throw new AssertionError("Plugin unresolved");
             var assets = plugin.loadClass("org.example.dbeaver.echarts.WebAssets").getDeclaredMethod("resolve", String.class);
             assets.setAccessible(true);

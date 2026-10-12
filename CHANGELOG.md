@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Fix native SWT/Edge startup when opening Report Designer from a chart or
+  dashboard: defer workbench view/editor creation until BrowserFunction returns.
+  Apply the same protection to New report and opening report/dashboard files.
+- Add a native SWT browser regression for callback-driven creation of a second
+  Report Designer and ignoring queued actions after the source is disposed.
+- Prepare a 0.6.3 preview installer, preserving the previous 0.6.2 archive.
 - Simplify Report Designer actions into File, Layout, Data and Export groups;
   keep Save, Refresh data and Preview layout visible with explicit SQL behavior.
 - Guide chart setup through Query, Data and Chart, with keyboard navigation,

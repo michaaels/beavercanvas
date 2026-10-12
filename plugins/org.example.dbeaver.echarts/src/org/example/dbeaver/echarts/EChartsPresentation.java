@@ -288,6 +288,7 @@ public final class EChartsPresentation extends AbstractPresentation {
                 throw new IllegalStateException("SWT Browser refused to load: " + allowedPage);
             }
         } catch (Throwable e) {
+            org.eclipse.core.runtime.Platform.getLog(EChartsPresentation.class).error("Could not initialize BeaverCanvas browser", e);
             if (browser != null && !browser.isDisposed()) {
                 browser.dispose();
                 browser = null;
@@ -487,6 +488,20 @@ public final class EChartsPresentation extends AbstractPresentation {
         });
     }
 
+    private boolean deferBrowserAction(Runnable action) {
+        Display currentDisplay = display;
+        Browser sourceBrowser = browser;
+        if (currentDisplay == null || currentDisplay.isDisposed() || sourceBrowser == null || sourceBrowser.isDisposed()) return false;
+        // Opening a workbench part can create another Edge/WebKit control. The
+        // originating BrowserFunction must return before its event loop runs.
+        currentDisplay.asyncExec(() -> {
+            if (browser != sourceBrowser || sourceBrowser.isDisposed()) return;
+            try { action.run(); }
+            catch (Exception error) { showDashboardError(error); }
+        });
+        return true;
+    }
+
     private void prepareForReload() {
         runOnUiThread(() -> {
             snapshotGeneration++;
@@ -603,19 +618,22 @@ public final class EChartsPresentation extends AbstractPresentation {
     }
 
     private Boolean openDashboard() {
+        return deferBrowserAction(this::openDashboardOnUiThread);
+    }
+
+    private void openDashboardOnUiThread() {
         FileDialog dialog = new FileDialog(browser.getShell(), SWT.OPEN);
         dialog.setText("Open BeaverCanvas dashboard");
         dialog.setFilterExtensions(new String[] {"*.echarts-dashboard.json", "*.json"});
         setDashboardFolder(dialog);
         String selected = dialog.open();
-        if (selected == null) return Boolean.FALSE;
+        if (selected == null) return;
         try {
             Path file = Path.of(selected);
             DashboardFiles.read(file);
             IDE.openEditor(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage(),
                 file.toUri(), DashboardEditor.ID, true);
-            return Boolean.TRUE;
-        } catch (Exception e) { showDashboardError(e); return Boolean.FALSE; }
+        } catch (Exception e) { showDashboardError(e); }
     }
 
     private void showDashboardError(Exception error) {
@@ -694,13 +712,21 @@ public final class EChartsPresentation extends AbstractPresentation {
         });
     }
 
+    private boolean openReportView(String report) {
+        return deferBrowserAction(() -> {
+            try {
+                var view = (ReportDesignerView) PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage().showView(ReportDesignerView.ID);
+                view.load(report);
+            } catch (Exception error) { throw new IllegalStateException(error); }
+        });
+    }
+
     private void registerReportFunctions() {
         reportFunction("dbeaverOpenReportDesigner", arguments -> {
             if (arguments.length != 1 || !(arguments[0] instanceof String document)) return false;
             try {
                 String report = ReportFiles.fromDashboard(document);
-                var view = (ReportDesignerView) PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage().showView(ReportDesignerView.ID);
-                return view.load(report);
+                return openReportView(report);
             } catch (Exception error) { throw new IllegalStateException(error); }
         });
         if (!reportMode) return;
@@ -708,8 +734,7 @@ public final class EChartsPresentation extends AbstractPresentation {
             if (arguments.length != 1 || !(arguments[0] instanceof String document)) return false;
             try {
                 String report = ReportFiles.canonical(document);
-                var view = (ReportDesignerView) PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage().showView(ReportDesignerView.ID);
-                return view.load(report);
+                return openReportView(report);
             } catch (Exception error) { throw new IllegalStateException(error); }
         });
         reportFunction("dbeaverSaveReport", arguments -> arguments.length >= 1 && arguments[0] instanceof String document
@@ -721,16 +746,15 @@ public final class EChartsPresentation extends AbstractPresentation {
             try { return ReportFiles.read(Path.of(selected)); }
             catch (Exception error) { throw new IllegalStateException(error); }
         });
-        reportFunction("dbeaverOpenReport", arguments -> {
+        reportFunction("dbeaverOpenReport", arguments -> deferBrowserAction(() -> {
             FileDialog dialog = reportDialog(SWT.OPEN, "Open report template", "*.echarts-report.json");
             String selected = dialog.open();
-            if (selected == null) return false;
+            if (selected == null) return;
             try {
                 Path file = Path.of(selected); ReportFiles.read(file);
                 IDE.openEditor(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage(), file.toUri(), ReportEditor.ID, true);
-                return true;
             } catch (Exception error) { throw new IllegalStateException(error); }
-        });
+        }));
         reportFunction("dbeaverListReportTemplates", arguments -> {
             List<Map<String, Object>> templates = new ArrayList<>();
             Path folder = reportFolder();
