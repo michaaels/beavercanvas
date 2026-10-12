@@ -46,6 +46,7 @@ function run(command, args) {
   if (result.stderr) process.stderr.write(result.stderr);
   if (result.error) throw result.error;
   if (result.status) throw new Error(`${path.basename(command)} exited ${result.status}`);
+  return result.stdout || '';
 }
 const source = path.join(root, 'plugins/org.example.dbeaver.echarts');
 const sources = fs.readdirSync(path.join(source, 'src/org/example/dbeaver/echarts'))
@@ -103,6 +104,9 @@ if (nativeStartup) {
   nativeBundle = path.join(output, 'native-startup.jar');
   run(compiler('jar'), ['cfm', nativeBundle, manifest, '-C', nativeClasses, '.']);
 }
-run(java('java'), ['--enable-native-access=ALL-UNNAMED', '-Djava.library.path=' + home,
+const registryOutput = run(java('java'), ['--enable-native-access=ALL-UNNAMED', '-Djava.library.path=' + home,
   '-cp', harness + path.delimiter + framework, 'PluginRegistryTest', home,
   path.join(output, 'configuration'), configurator, info, pluginJar, installed ? 'installed' : 'test', ...(nativeBundle ? [nativeBundle] : [])]);
+if (nativeStartup && (!registryOutput.includes('Native SWT/') || !registryOutput.includes('Equinox registry tests OK'))) {
+  throw new Error('Native SWT startup did not complete, even though the runtime exited without an error code');
+}

@@ -37,7 +37,11 @@ La prueba utiliza controles SWT reales y el frontend del plugin. Un callback del
 primer navegador solicita otro Report Designer; se verifica el retorno del callback,
 la carga de la segunda página y el descarte de tareas tras cerrar su presentación
 de origen. En el paquete 0.6.2 se observó el timeout de Edge; con la corrección
-la misma operación pasó en Windows.
+la misma operación pasó en Windows, tanto con el código compilado como con el ZIP
+0.6.3 instalado por P2. También pasó en SWT/WebKit sobre Ubuntu/WSL con Xvfb.
+
+El runner exige los marcadores de finalización nativa y de registro OSGi además
+del código de salida; una terminación prematura del runtime no cuenta como éxito.
 
 El harness no abre bases de datos ni utiliza un workspace personal. Comprueba el
 límite entre el callback y la creación nativa del navegador; no es una prueba de
