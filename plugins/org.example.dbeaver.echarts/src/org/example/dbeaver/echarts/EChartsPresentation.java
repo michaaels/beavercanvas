@@ -809,7 +809,10 @@ public final class EChartsPresentation extends AbstractPresentation {
             if (arguments.length != 5 || !(arguments[0] instanceof String requestId) || !requestId.matches("[A-Za-z0-9_-]{1,100}")
                 || !(arguments[1] instanceof String content) || !(arguments[2] instanceof String kind)
                 || !(arguments[3] instanceof String title)) return false;
-            validateReportExport(content, kind);
+            try { validateReportExport(content, kind); }
+            catch (IllegalArgumentException invalid) {
+                return deferBrowserAction(() -> publishReportExportResult(requestId, Map.of("error", safeMessage(invalid))));
+            }
             boolean open = Boolean.TRUE.equals(arguments[4]);
             return deferBrowserAction(() -> {
                 Map<String, Object> result;
