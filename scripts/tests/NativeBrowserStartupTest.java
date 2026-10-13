@@ -3,6 +3,9 @@ import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Map;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.browser.Browser;
 import org.eclipse.swt.browser.BrowserFunction;
@@ -69,6 +72,7 @@ public final class NativeBrowserStartupTest implements BundleActivator {
             }
             waitFor(display, () -> ready(opened), "second Report Designer");
             if (defer == null) throw new AssertionError("Opening was synchronous; production deferral is missing");
+            if (Arrays.stream(presentationType.getDeclaredMethods()).anyMatch(method -> method.getName().equals("writeReportExport"))) testDraftSave(display, source, browser);
             AtomicBoolean staleAction = new AtomicBoolean();
             defer.invoke(source, (Runnable) () -> staleAction.set(true));
             presentationType.getMethod("dispose").invoke(source);
@@ -81,6 +85,39 @@ public final class NativeBrowserStartupTest implements BundleActivator {
             if (first != null) presentationType.getMethod("dispose").invoke(first);
             shell.dispose(); display.dispose();
         }
+    }
+
+    private void testDraftSave(Display display, Object source, Browser browser) throws Exception {
+        Path folder = Files.createTempDirectory("beavercanvas-native-export-"), file = folder.resolve("draft.eml");
+        Method write = presentationType.getDeclaredMethod("writeReportExport", Path.class, String.class, String.class, boolean.class);
+        Method publish = presentationType.getDeclaredMethod("publishReportExportResult", String.class, Map.class);
+        write.setAccessible(true); publish.setAccessible(true);
+        AtomicBoolean returned = new AtomicBoolean();
+        BrowserFunction save = new BrowserFunction(browser, "nativeSaveDraft", true, new String[0]) {
+            @Override public Object function(Object[] arguments) {
+                String id = (String) arguments[0], content = (String) arguments[1];
+                try {
+                    defer.invoke(source, (Runnable) () -> {
+                        try {
+                            if (!returned.get()) throw new AssertionError("Draft write re-entered the callback");
+                            @SuppressWarnings("unchecked") Map<String, Object> result = (Map<String, Object>) write.invoke(source, file, content, "eml", false);
+                            if (!Boolean.FALSE.equals(result.get("sent"))) throw new AssertionError("A draft must not be sent");
+                            publish.invoke(source, id, result);
+                        } catch (Throwable error) { failure.set(error); }
+                    });
+                } catch (Throwable error) { failure.set(error); }
+                returned.set(true); return true;
+            }
+        };
+        try {
+            // Substitute only the path chooser; use real frontend EML generation,
+            // deferred native file write and acknowledgement with a controlled path.
+            browser.execute("window.dbeaverExportReportAsync=function(id,content){return window.nativeSaveDraft(id,content);};document.getElementById('reportStartHeading').click();document.getElementById('outlookReport').click();document.getElementById('saveReportEmail').click();");
+            waitFor(display, () -> Boolean.TRUE.equals(browser.evaluate("return !document.getElementById('reportEmailDialog').open && document.getElementById('reportStatus').textContent.includes('Draft saved');")), "native draft acknowledgement");
+            String eml = Files.readString(file);
+            if (!eml.contains("X-Unsent: 1\r\n") || !eml.contains("To: \r\n")) throw new AssertionError("Blank-recipient draft was not written correctly");
+            System.out.println("Native draft export OK: empty recipient, deferred write, EML file and frontend acknowledgement; controlled path, no email sent");
+        } finally { save.dispose(); Files.deleteIfExists(file); Files.deleteIfExists(folder); }
     }
 
     private Object create(Shell shell) throws Exception {

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Fit new SQL tables to their height, with a fixed maximum option for existing
+  layouts; keep pagination complete and independent of designer zoom.
+- Preserve the exact designer table page, formatting and totals in preview,
+  interactive HTML, static HTML and EML instead of recalculating fewer rows.
+- Allow empty recipients for unsent drafts, expose validation errors above the
+  preview, and defer native export/save dialogs until the browser callback returns.
+  Keep the composition form on cancellation/error and acknowledge saved files.
+- Prepare the 0.6.4 preview installer with browser and native EML regressions.
 - Fix native SWT/Edge startup when opening Report Designer from a chart or
   dashboard: defer workbench view/editor creation until BrowserFunction returns.
   Apply the same protection to New report and opening report/dashboard files.

@@ -31,7 +31,7 @@
         fontSize: type === 'heading' ? 28 : 14, fontFamily: 'Segoe UI', align: 'left' },
       config: { text: type === 'heading' ? 'Report title' : type === 'text' ? 'Write the report narrative here.' : '',
         image: '', alt: '', column: '', aggregate: 'sum', numberFormat: 'number', decimals: 2, prefix: '', suffix: '',
-        columns: [], totals: false, groupBy: '', pageSize: 20, sortColumn: '', sortDirection: 'asc',
+        columns: [], totals: false, groupBy: '', pageSize: 0, sortColumn: '', sortDirection: 'asc',
         chart: { chartType: 'line', xColumn: null, yColumns: [], yAxes: {}, marks: {}, colors: [], legend: true },
         visibility: { enabled: false, column: '', operator: 'notEmpty', value: '' } } };
   }
@@ -77,7 +77,7 @@
         column: text(config.column), aggregate: ['sum', 'average', 'count', 'first', 'min', 'max'].includes(config.aggregate) ? config.aggregate : 'sum',
         numberFormat: ['number', 'currency', 'percent', 'date', 'text'].includes(config.numberFormat) ? config.numberFormat : 'number',
         decimals: number(config.decimals, 0, 8, 2), prefix: text(config.prefix, 40), suffix: text(config.suffix, 40),
-        totals: config.totals === true, groupBy: text(config.groupBy), pageSize: Math.round(number(config.pageSize, 5, 200, 20)),
+        totals: config.totals === true, groupBy: text(config.groupBy), pageSize: config.pageSize === 0 ? 0 : Math.round(number(config.pageSize, 5, 200, 20)),
         sortColumn: text(config.sortColumn), sortDirection: config.sortDirection === 'desc' ? 'desc' : 'asc' };
       normalized.config.columns = (Array.isArray(config.columns) ? config.columns : []).slice(0, 100).map(column => ({
         name: text(column.name), label: text(column.label) || text(column.name), format: ['number', 'currency', 'percent', 'date', 'text'].includes(column.format) ? column.format : 'text',

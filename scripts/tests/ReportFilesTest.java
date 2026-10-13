@@ -119,6 +119,10 @@ public final class ReportFilesTest {
             "Parameter definition and runtime value were mixed");
         check(ReportFiles.canonical(saved.toString()).equals(ReportFiles.canonical(report.toString())),
             "Normalized table settings changed on reopen");
+        table.getAsJsonObject("config").addProperty("pageSize", 0);
+        JsonObject automatic = ReportFiles.parse(ReportFiles.canonical(report.toString()));
+        check(automatic.getAsJsonArray("widgets").get(0).getAsJsonObject().getAsJsonObject("config").get("pageSize").getAsInt() == 0,
+            "Automatic table row sizing was lost on save/reopen");
     }
 
     private interface Action { void run() throws Exception; }

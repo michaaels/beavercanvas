@@ -93,6 +93,7 @@
 .report-email-preview { display: flex; flex-direction: column; flex: 1 0 340px; min-width: 0; }
 .report-dialog.email footer { position: static; flex: 0 0 auto; }
 #reportEmailError:empty { display: none; }
+.report-designer #reportEmailError { flex: 0 0 auto; color: #b42318; background: #fff2ef; padding: 8px; max-width: none; }
 .report-dialog::backdrop, .report-preview-dialog::backdrop { background: #0007; }
 .report-dialog h2 { font-size: 20px; margin: 0 0 12px; }
 .report-dialog > p { color: var(--muted); font-size: 12px; line-height: 1.5; max-width: 75ch; }

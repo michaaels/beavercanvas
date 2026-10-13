@@ -131,9 +131,12 @@
     if (!requireData(body, snapshot)) return;
     const columns = tableColumns(widget, snapshot), rows = sortedRows(widget, snapshot);
     if (!columns.length) { body.append(node('p', 'Select table columns in Properties.', 'report-placeholder')); return; }
-    let page = Math.min(Math.max(0, Math.floor(context.tablePages?.[widget.id] || 0)), Math.max(0, Math.ceil(rows.length / widget.config.pageSize) - 1));
-    if (context.tablePages) context.tablePages[widget.id] = page;
-    let rowLimit = widget.config.pageSize;
+    const views = context.tableViews || {}, prior = views[widget.id];
+    const requested = Math.max(0, Math.floor(context.tablePages?.[widget.id] ?? prior?.page ?? 0));
+    const locked = context.lockTableViews && prior;
+    let page = 0, pageSize = locked ? Math.max(1, prior.pageSize) : widget.config.pageSize || 200;
+    let rowLimit = pageSize;
+    let anchor = requested * (prior?.pageSize || pageSize);
     const table = node('table', undefined, 'report-table'), head = node('thead'), headRow = node('tr'), tbody = node('tbody');
     columns.forEach(column => {
       const cell = node('th', column.label); cell.scope = 'col'; cell.style.textAlign = column.align;
@@ -168,7 +171,7 @@
     const groupIndex = snapshot.columns.findIndex(column => column.name === widget.config.groupBy);
     function renderRows() {
       tbody.replaceChildren();
-      const shown = rows.slice(page * widget.config.pageSize, page * widget.config.pageSize + rowLimit);
+      const shown = rows.slice(page * pageSize, page * pageSize + rowLimit);
       if (groupIndex >= 0) {
         const groups = new Map();
         for (const row of shown) { const key = String(row[groupIndex] ?? ''); if (!groups.has(key)) groups.set(key, []); groups.get(key).push(row); }
@@ -176,32 +179,51 @@
       } else shown.forEach(row => addRow(row));
       if (widget.config.totals) totalRow(rows, 'Total');
     }
-    renderRows();
-    if (context.staticTable) {
-      const summary = node('p', 'Rows shown in this email', 'report-table-summary'); body.append(summary);
-      // Bound the rows themselves: Outlook cannot reliably clip an overflowing table.
-      // The export body has the same configured pixel height as the designer component.
-      const available = wrap.clientHeight;
-      if (available <= 0) { rowLimit = 0; renderRows(); }
-      if (available > 0 && table.getBoundingClientRect().height > available) {
-        let low = 0, high = rowLimit;
+    const summary = node('p', undefined, 'report-table-summary');
+    const controls = node('div', undefined, 'report-pagination'), previous = node('button', 'Previous'), next = node('button', 'Next'), status = node('span');
+    previous.type = next.type = 'button';
+    if (context.staticTable) body.append(summary);
+    else { controls.append(previous, status, next); body.append(controls); }
+    if (snapshot.truncated) body.append(node('p', `Partial result: limited to ${snapshot.effectiveMaxRows} rows.`, 'report-truncated'));
+    function update() {
+      const start = page * pageSize, end = Math.min(start + rowLimit, rows.length);
+      const range = rowLimit ? `Rows ${start + 1}–${end} of ${rows.length}` : 'Increase the table height to show data rows.';
+      summary.textContent = range;
+      status.textContent = rowLimit ? `${page + 1} / ${Math.ceil(rows.length / pageSize)} · ${range}` : range;
+      previous.disabled = !rowLimit || page === 0; next.disabled = !rowLimit || end >= rows.length;
+      if (context.tablePages) context.tablePages[widget.id] = page;
+      views[widget.id] = { page, pageSize, rowLimit };
+      body.dataset.tablePageSize = String(pageSize); body.dataset.tableRowLimit = String(rowLimit);
+    }
+    function fit() {
+      if (locked) {
+        pageSize = Math.max(1, prior.pageSize); rowLimit = prior.rowLimit;
+        page = Math.min(requested, Math.max(0, Math.ceil(rows.length / pageSize) - 1));
+      } else {
+        // Use unscaled CSS dimensions: designer zoom must not change saved row counts.
+        page = 0; let low = 0, high = Math.min(widget.config.pageSize || 200, rows.length);
         while (low < high) {
           rowLimit = Math.ceil((low + high) / 2); renderRows();
-          if (table.getBoundingClientRect().height <= available) low = rowLimit; else high = rowLimit - 1;
+          if (table.offsetHeight <= wrap.clientHeight && wrap.clientHeight > 0) low = rowLimit;
+          else high = rowLimit - 1;
         }
-        rowLimit = low; renderRows();
+        rowLimit = low; pageSize = Math.max(1, rowLimit);
+        page = Math.min(Math.floor(anchor / pageSize), Math.max(0, Math.ceil(rows.length / pageSize) - 1));
       }
-      const start = page * widget.config.pageSize;
-      summary.textContent = rowLimit ? `Rows ${start + 1}–${Math.min(start + rowLimit, rows.length)} of ${rows.length}` : 'Increase the table height to show data rows.';
-    } else if (rows.length > widget.config.pageSize) {
-      const controls = node('div', undefined, 'report-pagination'), previous = node('button', 'Previous'), next = node('button', 'Next'), status = node('span');
-      previous.type = next.type = 'button';
-      function update() { previous.disabled = page === 0; next.disabled = (page + 1) * widget.config.pageSize >= rows.length; status.textContent = `${page + 1} / ${Math.ceil(rows.length / widget.config.pageSize)} · ${rows.length} rows`; }
-      const setPage = value => { page = value; if (context.tablePages) context.tablePages[widget.id] = page; renderRows(); update(); };
-      previous.onclick = () => setPage(page - 1); next.onclick = () => setPage(page + 1);
-      controls.append(previous, status, next); body.append(controls); update();
+      renderRows(); update();
     }
-    if (snapshot.truncated) body.append(node('p', `Partial result: limited to ${snapshot.effectiveMaxRows} rows.`, 'report-truncated'));
+    const setPage = value => { page = value; anchor = page * pageSize; renderRows(); update(); };
+    previous.onclick = () => setPage(page - 1); next.onclick = () => setPage(page + 1);
+    fit();
+    if (!context.staticTable && !locked && typeof ResizeObserver === 'function') {
+      let width = body.clientWidth, height = body.clientHeight;
+      const observer = new ResizeObserver(() => {
+        if (width === body.clientWidth && height === body.clientHeight) return;
+        width = body.clientWidth; height = body.clientHeight; fit();
+      });
+      observer.observe(body);
+      return () => observer.disconnect();
+    }
   } });
   function applyStyle(body, widget) {
     const style = widget.style;

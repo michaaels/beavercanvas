@@ -125,6 +125,10 @@ async function main() {
     await properties.getByLabel('Component title', { exact: true }).fill('Ventas acumuladas');
     await page.locator('[data-component-type="table"]').click();
     await properties.getByLabel('Query', { exact: true }).selectOption(sourceId);
+    await properties.getByLabel('Rows shown', { exact: true }).selectOption('fixed');
+    await properties.locator('[data-property-section="Position and size"] > summary').click();
+    await properties.getByLabel('Height (rows)', { exact: true }).fill('50');
+    await properties.getByLabel('Height (rows)', { exact: true }).press('Tab');
     await properties.getByLabel('Show totals / subtotals', { exact: true }).check();
     await properties.getByLabel('Rows per page', { exact: true }).fill('5'); await properties.getByLabel('Rows per page', { exact: true }).press('Tab');
     assert.equal(await page.locator('#reportCanvas .report-table tbody tr').count(), 7);
@@ -198,6 +202,7 @@ async function main() {
     assert.equal(saved.sources[0].connectionId, 'demo-sales');
     assert.equal(saved.parameters[0].default, '2026-10-01');
     assert.ok(!('rows' in saved) && !('snapshots' in saved));
+    const designedTableRows = await page.locator('#reportCanvas .report-table tbody tr').allTextContents();
     for (const mode of ['interactive', 'email', 'template']) {
       await page.locator('#reportExportMenu > summary').click(); await page.locator('#exportReport').click(); await page.locator('#reportExportFormat').selectOption(mode); await page.locator('#saveReportExport').click();
     }
@@ -259,7 +264,7 @@ async function main() {
     await result.goto(pathToFileURL(path.join(artifactDir, 'ventas-interactive.html')).href);
     await result.waitForSelector('.report-chart canvas');
     assert.match(await result.locator('.report-kpi-value').textContent(), /28[,.]?800/);
-    assert.equal(await result.locator('.report-table tbody tr').count(), 18);
+    assert.deepEqual(await result.locator('.report-table tbody tr').allTextContents(), designedTableRows, 'Interactive export keeps exactly the designer page');
     assert.ok(requests.every(url => url.startsWith('file:') || url.startsWith('data:')));
     assert.deepEqual(reportErrors, []); assert.deepEqual(errors, []);
     await result.screenshot({ path: path.join(root, '.dev/screenshots/report-html-offline.png'), fullPage: true });
@@ -269,7 +274,8 @@ async function main() {
     assert.ok(components.every((box, index) => !index || box.top >= components[index - 1].bottom), 'Offline HTML stacks components without overlaps on narrow screens');
     await result.setViewportSize({ width: 1100, height: 1000 });
     await result.goto(pathToFileURL(path.join(artifactDir, 'ventas-email.html')).href);
-    assert.equal(await result.locator('script,canvas').count(), 0); assert.equal(await result.locator('table table tbody tr').count() >= 18, true);
+    assert.equal(await result.locator('script,canvas').count(), 0);
+    assert.deepEqual(await result.locator('table:not([role]) > tbody > tr').allTextContents(), designedTableRows, 'Static HTML keeps the same rows, formats and totals as the designer');
     await result.screenshot({ path: path.join(root, '.dev/screenshots/report-email.png'), fullPage: true });
     await offline.close();
     // Static mail must preserve the selected page and explicit height, not expand all 90 rows.

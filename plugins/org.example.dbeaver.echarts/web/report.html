@@ -65,9 +65,10 @@
   </dialog>
   <dialog id="reportEmailDialog" class="report-dialog email" aria-labelledby="reportEmailHeading"><h2 id="reportEmailHeading">Compose Outlook draft</h2>
     <p>Creates an EML draft with inline chart images. The plugin does not send email. Editing the saved draft depends on your mail client.</p>
+    <p id="reportEmailError" class="report-data-error" role="alert"></p>
     <div class="report-email-content">
       <section class="report-email-fields" aria-label="Draft details">
-        <div class="report-form-grid"><label>To<input id="reportEmailTo" type="text" placeholder="name@example.com"></label><label>CC<input id="reportEmailCc" type="text"></label></div>
+        <div class="report-form-grid"><label>To (optional for a draft)<input id="reportEmailTo" type="text" placeholder="name@example.com"></label><label>CC<input id="reportEmailCc" type="text"></label></div>
         <label>Subject<input id="reportEmailSubject" maxlength="200"></label><label>Message<textarea id="reportEmailMessage" rows="3"></textarea></label>
         <label class="report-check"><input id="reportEmailAttach" type="checkbox" checked> Attach offline interactive HTML</label>
         <label class="report-check"><input id="reportEmailOpen" type="checkbox"> Open saved EML with the registered mail client</label>
@@ -77,7 +78,6 @@
         <iframe id="reportEmailPreview" title="Email report preview" sandbox="" referrerpolicy="no-referrer"></iframe>
       </section>
     </div>
-    <p id="reportEmailError" class="report-data-error" role="alert"></p>
     <footer><button id="saveReportEmail" type="button" class="report-primary">Save email draft</button><button data-close="reportEmailDialog" type="button">Cancel</button></footer>
   </dialog>
   <dialog id="reportTemplateDialog" class="report-dialog" aria-labelledby="reportTemplateHeading"><h2 id="reportTemplateHeading">Reusable templates</h2>

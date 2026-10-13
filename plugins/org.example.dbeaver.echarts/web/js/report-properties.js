@@ -98,13 +98,15 @@
     }
     if (item.type === 'table') {
       const body = section(root, 'Table');
-      body.append(field('Rows per page', item.config.pageSize, 'number', value => config('pageSize', value)),
-        field('Decimal places', item.config.decimals, 'number', value => config('decimals', value)),
+        body.append(field('Rows shown', item.config.pageSize === 0 ? 'auto' : 'fixed', 'select', value => config('pageSize', value === 'auto' ? 0 : 20),
+          [['auto', 'Fit rows to table height'], ['fixed', 'Fixed maximum per page']]));
+        if (item.config.pageSize !== 0) body.append(field('Rows per page', item.config.pageSize, 'number', value => config('pageSize', value)));
+        body.append(field('Decimal places', item.config.decimals, 'number', value => config('decimals', value)),
         field('Sort by', item.config.sortColumn, 'select', value => config('sortColumn', value), [['', 'Query order'], ...names]),
         field('Sort direction', item.config.sortDirection, 'select', value => config('sortDirection', value), ['asc', 'desc']),
         field('Show totals / subtotals', item.config.totals, 'checkbox', value => config('totals', value)),
         field('Subtotal group', item.config.groupBy, 'select', value => config('groupBy', value), [['', 'No grouping'], ...names]));
-      body.append(node('p', 'Email keeps the selected page and fits rows to the table height. Increase Rows per page and Height to show more.', 'report-placeholder'));
+        body.append(node('p', 'Stretch the table to show more rows. HTML and email keep the page shown in the designer. Fixed mode limits the maximum rows per page.', 'report-placeholder'));
       if (snapshot) {
         const chosen = W.tableColumns(item, snapshot);
         for (const column of snapshot.columns) {

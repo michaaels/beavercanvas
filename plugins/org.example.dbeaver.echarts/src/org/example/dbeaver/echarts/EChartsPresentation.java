@@ -801,20 +801,50 @@ public final class EChartsPresentation extends AbstractPresentation {
         });
         reportFunction("dbeaverExportReport", arguments -> {
             if (arguments.length < 3 || !(arguments[0] instanceof String content) || !(arguments[1] instanceof String kind)
-                || !(arguments[2] instanceof String title) || !Set.of("interactive", "email", "template", "eml").contains(kind)) return null;
-            if (content.getBytes(StandardCharsets.UTF_8).length > ReportFiles.MAX_EXPORT_BYTES) throw new IllegalArgumentException("Generated report exceeds 32 MiB.");
-            String extension = "template".equals(kind) ? ".echarts-report.json" : "eml".equals(kind) ? ".eml" : ".html";
-            FileDialog dialog = reportDialog(SWT.SAVE, "eml".equals(kind) ? "Save email draft (not sent)" : "Export report", "*" + extension);
-            dialog.setFileName(fileName(title) + extension); dialog.setOverwrite(true);
-            String selected = dialog.open(); if (selected == null) return null;
-            try {
-                Path file = Path.of(selected);
-                if ("template".equals(kind)) ReportFiles.write(file, content); else ReportFiles.export(file, content);
-                boolean opened = "eml".equals(kind) && arguments.length > 3 && Boolean.TRUE.equals(arguments[3])
-                    && org.eclipse.swt.program.Program.launch(file.toString());
-                return JsonWriter.write(Map.of("path", file.toString(), "opened", opened, "sent", false));
-            } catch (Exception error) { throw new IllegalStateException(error); }
+                || !(arguments[2] instanceof String title)) return null;
+            validateReportExport(content, kind);
+            return JsonWriter.write(exportReport(content, kind, title, arguments.length > 3 && Boolean.TRUE.equals(arguments[3])));
         });
+        reportFunction("dbeaverExportReportAsync", arguments -> {
+            if (arguments.length != 5 || !(arguments[0] instanceof String requestId) || !requestId.matches("[A-Za-z0-9_-]{1,100}")
+                || !(arguments[1] instanceof String content) || !(arguments[2] instanceof String kind)
+                || !(arguments[3] instanceof String title)) return false;
+            validateReportExport(content, kind);
+            boolean open = Boolean.TRUE.equals(arguments[4]);
+            return deferBrowserAction(() -> {
+                Map<String, Object> result;
+                try { result = exportReport(content, kind, title, open); }
+                catch (Exception error) { result = Map.of("error", safeMessage(error)); }
+                publishReportExportResult(requestId, result);
+            });
+        });
+    }
+
+    private static void validateReportExport(String content, String kind) {
+        if (!Set.of("interactive", "email", "template", "eml").contains(kind)) throw new IllegalArgumentException("Unsupported report export format.");
+        if (content.getBytes(StandardCharsets.UTF_8).length > ReportFiles.MAX_EXPORT_BYTES) throw new IllegalArgumentException("Generated report exceeds 32 MiB.");
+    }
+
+    private Map<String, Object> exportReport(String content, String kind, String title, boolean open) {
+        String extension = "template".equals(kind) ? ".echarts-report.json" : "eml".equals(kind) ? ".eml" : ".html";
+        FileDialog dialog = reportDialog(SWT.SAVE, "eml".equals(kind) ? "Save email draft (not sent)" : "Export report", "*" + extension);
+        dialog.setFileName(fileName(title) + extension); dialog.setOverwrite(true);
+        String selected = dialog.open();
+        if (selected == null) return Map.of("cancelled", true);
+        return writeReportExport(Path.of(selected), content, kind, open);
+    }
+
+    private Map<String, Object> writeReportExport(Path file, String content, String kind, boolean open) {
+        try {
+            validateReportExport(content, kind);
+            if ("template".equals(kind)) ReportFiles.write(file, content); else ReportFiles.export(file, content);
+            boolean opened = "eml".equals(kind) && open && org.eclipse.swt.program.Program.launch(file.toString());
+            return Map.of("path", file.toString(), "opened", opened, "sent", false);
+        } catch (Exception error) { throw new IllegalStateException(error); }
+    }
+
+    private void publishReportExportResult(String requestId, Map<String, Object> result) {
+        executeBrowser("if(window.DBeaverECharts){window.DBeaverECharts.reportExportFinished(" + JsonWriter.write(requestId) + "," + JsonWriter.write(result) + ");}");
     }
 
     private static String assetText(String name) {
