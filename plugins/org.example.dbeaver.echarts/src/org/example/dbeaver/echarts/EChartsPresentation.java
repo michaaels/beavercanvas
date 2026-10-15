@@ -55,6 +55,7 @@ import java.util.function.Function;
 public final class EChartsPresentation extends AbstractPresentation {
     private Composite root;
     private Browser browser;
+    private BrowserKeyBindings browserKeys;
     private Display display;
     private BrowserFunction datasetFunction;
     private BrowserFunction saveConfigurationFunction;
@@ -86,6 +87,7 @@ public final class EChartsPresentation extends AbstractPresentation {
     private Runnable markDirty;
     private boolean reportMode;
     private boolean reportLoadingAsNew;
+    private String reportPreviewData;
     private Path reportFile;
     private String reportDiskText;
     private Runnable reportSaved;
@@ -121,11 +123,22 @@ public final class EChartsPresentation extends AbstractPresentation {
     }
 
     void loadReport(String document) {
+        loadReport(document, null);
+    }
+
+    void loadReport(String document, String previewData) {
         standaloneDocument = ReportFiles.canonical(document);
+        reportPreviewData = previewData;
         reportFile = null;
         reportDiskText = null;
         reportLoadingAsNew = true;
-        if (browserReady) executeBrowser("window.DBeaverECharts.loadReport(JSON.parse(" + JsonWriter.write(standaloneDocument) + "),true);" );
+        if (browserReady) publishReport();
+    }
+
+    private void publishReport() {
+        executeBrowser("window.DBeaverECharts.loadReport(JSON.parse(" + JsonWriter.write(standaloneDocument) + "),"
+            + reportLoadingAsNew + ",JSON.parse(" + JsonWriter.write(reportPreviewData == null ? "{}" : reportPreviewData) + "));" );
+        reportPreviewData = null;
     }
 
     void setReportSavedListener(Runnable listener) { reportSaved = listener; }
@@ -153,6 +166,8 @@ public final class EChartsPresentation extends AbstractPresentation {
             Path allowedRoot = Paths.get(page.toURI()).getParent().toAbsolutePath().normalize();
 
             browser = new Browser(root, SWT.NONE);
+            browserKeys = BrowserKeyBindings.install(browser);
+            root.addListener(SWT.FocusIn, event -> { if (isBrowserAvailable()) browser.setFocus(); });
             browser.setJavascriptEnabled(true);
             browser.addLocationListener(new LocationAdapter() {
                 @Override
@@ -368,7 +383,8 @@ public final class EChartsPresentation extends AbstractPresentation {
         }
         browserReady = true;
         if (standaloneDocument != null) {
-            executeBrowser("window.DBeaverECharts." + (reportMode ? "loadReport" : "loadDashboard") + "(JSON.parse(" + JsonWriter.write(standaloneDocument) + ")," + (!reportMode || reportLoadingAsNew) + ");");
+            if (reportMode) publishReport();
+            else executeBrowser("window.DBeaverECharts.loadDashboard(JSON.parse(" + JsonWriter.write(standaloneDocument) + "),true);");
         } else { publishConfiguration(); }
         publishTheme();
         scheduleSnapshot();
@@ -707,26 +723,31 @@ public final class EChartsPresentation extends AbstractPresentation {
         reportFunctions.add(new BrowserFunction(browser, name, true, new String[0]) {
             @Override public Object function(Object[] arguments) {
                 try { return action.apply(arguments); }
-                catch (Exception error) { showDashboardError(error); return null; }
+                catch (Exception error) { deferBrowserAction(() -> showDashboardError(error)); return null; }
             }
         });
     }
 
     private boolean openReportView(String report) {
+        return openReportView(report, null);
+    }
+
+    private boolean openReportView(String report, String previewData) {
         return deferBrowserAction(() -> {
             try {
                 var view = (ReportDesignerView) PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage().showView(ReportDesignerView.ID);
-                view.load(report);
+                view.load(report, previewData);
             } catch (Exception error) { throw new IllegalStateException(error); }
         });
     }
 
     private void registerReportFunctions() {
         reportFunction("dbeaverOpenReportDesigner", arguments -> {
-            if (arguments.length != 1 || !(arguments[0] instanceof String document)) return false;
+            if (arguments.length < 1 || arguments.length > 2 || !(arguments[0] instanceof String document)) return false;
             try {
                 String report = ReportFiles.fromDashboard(document);
-                return openReportView(report);
+                String preview = ReportPreviewData.fromDashboard(report, arguments.length == 2 && arguments[1] instanceof String data ? data : null);
+                return openReportView(report, preview);
             } catch (Exception error) { throw new IllegalStateException(error); }
         });
         if (!reportMode) return;
@@ -905,6 +926,8 @@ public final class EChartsPresentation extends AbstractPresentation {
 
     @Override
     public void dispose() {
+        if (browserKeys != null) { browserKeys.release(); browserKeys = null; }
+        reportPreviewData = null;
         for (BrowserFunction function : reportFunctions) if (!function.isDisposed()) function.dispose();
         reportFunctions.clear();
         snapshotGeneration++;

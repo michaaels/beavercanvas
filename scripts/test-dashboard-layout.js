@@ -57,4 +57,16 @@ for (const [edge, values] of Object.entries(expected)) {
 assert.deepEqual(plain(layout.resizeLayout(initial, 'nw', 999, 999)), { x: 5, y: 5, width: 4, height: 5 }, 'Minimum size preserves the opposite corner');
 assert.deepEqual(plain(layout.resizeLayout(initial, 'nw', -999, -999)), { x: 0, y: 0, width: 9, height: 10 }, 'Top and left cannot cross dashboard bounds');
 assert.deepEqual(plain(layout.resizeLayout(initial, 'se', 999, 999)), { x: 3, y: 2, width: 9, height: 24 }, 'Right bound and maximum height');
-console.log('Dashboard layout tests OK: legacy migration, eight-edge resize anchoring/bounds, move, persistence and 24-widget collisions');
+const flow = [
+  { id: 'full', layout: { x: 0, y: 0, width: 12, height: 8 } },
+  { id: 'left', layout: { x: 0, y: 8, width: 6, height: 8 } },
+  { id: 'right', layout: { x: 6, y: 8, width: 6, height: 8 } },
+  { id: 'section-child', parentId: 'section', layout: { x: 0, y: 20, width: 6, height: 8 } }
+];
+const dimensions = flow.map(widget => [widget.layout.x, widget.layout.width, widget.layout.height]);
+layout.moveInFlow(flow, 'full', { ...flow[0].layout, y: 8 });
+assert.deepEqual(flow.map(widget => widget.layout.y), [8, 0, 0, 20], 'Lower aligned row fills the vacated top row');
+layout.moveInFlow(flow, 'full', { ...flow[0].layout, y: 0 });
+assert.deepEqual(flow.map(widget => widget.layout.y), [0, 8, 8, 20], 'Dragging back up restores row order, including midpoint ties');
+assert.deepEqual(flow.map(widget => [widget.layout.x, widget.layout.width, widget.layout.height]), dimensions);
+console.log('Dashboard layout tests OK: legacy migration, eight-edge resize, bidirectional row flow, aligned columns, section isolation, persistence and 24-widget collisions');

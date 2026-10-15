@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const sandbox = vm.createContext({ window: {} });
-for (const file of ['geo-data', 'analytics', 'dashboard-layout', 'dashboard', 'report-model', 'report-execution']) {
+for (const file of ['geo-data', 'analytics', 'dashboard-layout', 'document-history', 'dashboard', 'report-model', 'report-execution']) {
   vm.runInContext(fs.readFileSync(`plugins/org.example.dbeaver.echarts/web/js/${file}.js`, 'utf8'), sandbox);
 }
 const { DBeaverGeoData: G, DBeaverEChartsAnalytics: A, DBeaverEChartsDashboard: D, DBeaverReportModel: M } = sandbox.window;

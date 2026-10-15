@@ -90,6 +90,7 @@
   <dialog id="widgetEditor" class="widget-editor" aria-labelledby="widgetEditorHeading">
     <h2 id="widgetEditorHeading">Edit widget</h2>
     <label class="widget-editor-title">Title<input id="widgetEditorName" type="text" maxlength="200"></label>
+    <label class="widget-auto-title"><input id="widgetEditorAutoTitle" type="checkbox"> Use selected fields as title</label>
     <div class="widget-editor-steps" role="tablist" aria-label="Chart setup">
       <button id="widgetEditorQueryTab" type="button" role="tab" aria-controls="widgetEditorQueryPanel" aria-selected="true" data-editor-step="query">1. Query</button>
       <button id="widgetEditorDataTab" type="button" role="tab" aria-controls="widgetEditorDataPanel" aria-selected="false" tabindex="-1" data-editor-step="data">2. Data</button>
@@ -120,6 +121,6 @@
     </section>
     <div class="widget-editor-actions"><button id="widgetEditorSave" type="button" class="primary-action">Apply widget</button><button id="widgetEditorCancel" type="button">Cancel</button></div>
   </dialog>
-  <script src="js/echarts.min.js"></script><script src="js/world-map.js"></script><script src="js/geo-data.js"></script><script src="js/analytics.js"></script><script src="js/map-fields.js"></script><script src="js/dashboard-layout.js"></script>
+  <script src="js/echarts.min.js"></script><script src="js/world-map.js"></script><script src="js/geo-data.js"></script><script src="js/analytics.js"></script><script src="js/map-fields.js"></script><script src="js/dashboard-layout.js"></script><script src="js/document-history.js"></script>
   <script src="js/widget-editor.js"></script><script src="js/report-model.js"></script><script src="js/report-widgets.js"></script><script src="js/report-execution.js"></script><script src="js/report-export.js"></script><script src="js/report-properties.js"></script><script src="js/report-designer.js"></script>
 </body></html>

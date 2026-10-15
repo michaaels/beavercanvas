@@ -86,13 +86,14 @@
       }
     }
     return {
-      show(widget, insert = false) {
-        const nextKey = JSON.stringify([widget.id, widget.parentId, widget.layout, insert]);
+      show(widget, insert = false, flow = false) {
+        const nextKey = JSON.stringify([widget.id, widget.parentId, widget.layout, insert, flow]);
         if (nextKey !== key) {
           planned = M.clone(baseline);
           if (insert) planned.push(M.clone(widget));
+          else if (flow) L.moveInFlow(planned, widget.id, widget.layout, M.BOUNDS);
           else planned.find(item => item.id === widget.id).layout = { ...widget.layout };
-          M.place(planned, widget.id); key = nextKey;
+          M.place(planned, flow ? undefined : widget.id); key = nextKey;
         }
         apply(planned);
       },
@@ -263,8 +264,8 @@
       if (!delta || gesture) return; event.preventDefault(); event.stopPropagation();
       change(draft => {
         const item = draft.widgets.find(item => item.id === widget.id);
-        item.layout = edge ? L.resizeLayout(item.layout, edge, ...delta, M.BOUNDS) : L.normalizeLayout({ ...item.layout, x: item.layout.x + delta[0], y: item.layout.y + delta[1] }, M.BOUNDS);
-        draft.priorityId = widget.id;
+          if (edge) { item.layout = L.resizeLayout(item.layout, edge, ...delta, M.BOUNDS); draft.priorityId = widget.id; }
+          else L.moveInFlow(draft.widgets, widget.id, { ...item.layout, x: item.layout.x + delta[0], y: item.layout.y + delta[1] }, M.BOUNDS);
       });
       const updated = $('reportCanvas').querySelector(`[data-component-id="${CSS.escape(widget.id)}"]`);
       updated?.querySelector(edge ? `[data-edge="${edge}"]` : '.report-move')?.focus();
@@ -280,7 +281,7 @@
   }
   function startGesture(event, frame, widget, grid, edge, handle) {
     if (gesture || event.button !== 0 || event.isPrimary === false) return;
-    event.preventDefault(); event.stopPropagation(); select(widget.id);
+    event.preventDefault(); event.stopPropagation(); select(widget.id); handle.focus();
     const origin = grid.getBoundingClientRect(), initial = { ...widget.layout }, x = event.clientX, y = event.clientY, pointerId = event.pointerId;
     const pitch = (origin.width + current().page.gap * zoom) / 12, rowPitch = (24 + current().page.gap) * zoom;
     let candidate = initial;
@@ -291,7 +292,7 @@
       latest = pointer; const box = grid.getBoundingClientRect();
       const dx = Math.round((pointer.clientX - x - box.x + origin.x) / pitch), dy = Math.round((pointer.clientY - y - box.y + origin.y) / rowPitch);
       candidate = edge === 'move' ? L.normalizeLayout({ ...initial, x: initial.x + dx, y: initial.y + dy }, M.BOUNDS) : L.resizeLayout(initial, edge, dx, dy, M.BOUNDS);
-      layouts.show({ ...widget, layout: candidate }); resizeStage();
+      layouts.show({ ...widget, layout: candidate }, false, edge === 'move'); resizeStage();
     }
     function finish(commit) {
       gesture = null; clearInterval(timer); document.body.classList.remove('report-dragging'); guide.remove();
@@ -300,7 +301,10 @@
       handle.removeEventListener('lostpointercapture', cancel);
       try { handle.releasePointerCapture(pointerId); } catch (error) { /* Capture may have ended in the native browser. */ }
       layouts.restore();
-      if (commit) change(draft => { draft.widgets.find(item => item.id === widget.id).layout = candidate; draft.priorityId = widget.id; });
+      if (commit) change(draft => {
+          if (edge === 'move') L.moveInFlow(draft.widgets, widget.id, candidate, M.BOUNDS);
+          else { draft.widgets.find(item => item.id === widget.id).layout = candidate; draft.priorityId = widget.id; }
+        });
       else renderCanvas();
     }
     function move(pointer) { if (pointer.pointerId === pointerId) { pointer.preventDefault(); moved ||= Math.hypot(pointer.clientX - x, pointer.clientY - y) > 3; update(pointer); } }
@@ -319,13 +323,15 @@
     try { handle.setPointerCapture(pointerId); } catch (error) { /* Document events are the fallback. */ }
   }
   function showDialog(id) { $(id).showModal(); }
-  function loadReport(input, asNew = false) {
+  function loadReport(input, asNew = false, previewData = {}) {
     const normalized = M.normalize(typeof input === 'string' ? JSON.parse(input) : input);
     pendingExport = null; $('saveReportEmail').disabled = $('saveReportExport').disabled = false;
     gesture?.cancel(); clearDropPreview(true); tablePages = {}; tableViews = {}; window.DBeaverWidgetEditor.close(); execution.reset(); history.replace(normalized); selected.clear();
     values = Object.fromEntries(normalized.parameters.map(parameter => [parameter.name, parameter.default])); saved = asNew ? '' : JSON.stringify(current());
     document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
-    generating = false; render(); status('Template ready. Review SQL before refreshing its data.');
+    execution.reconcile(current(), values);
+    for (const source of current().sources) if (previewData[source.id]) execution.seed(source.id, previewData[source.id]);
+    generating = false; render(); status(Object.keys(execution.state().snapshots).length ? 'Dashboard data ready. No queries were executed; review SQL before refreshing.' : 'Template ready. Review SQL before refreshing its data.');
   }
   function createDocument(document) {
     // A new report opens in the workbench view, keeping a file editor's input intact.
@@ -421,7 +427,7 @@
   }
   function openChart(item, newComponent = false) {
     const existing = current().sources.find(source => source.id === item.sourceId), source = existing || M.source({ id: M.id('source') });
-    window.DBeaverWidgetEditor.open({ widget: { id: item.id, title: item.title, source, chart: item.config.chart, refreshPolicy: { mode: 'manual', intervalSeconds: 0 } },
+    window.DBeaverWidgetEditor.open({ widget: { id: item.id, title: item.title, titleMode: item.titleMode, source, chart: item.config.chart, refreshPolicy: { mode: 'manual', intervalSeconds: 0 } },
       componentName: 'chart',
       snapshot: execution.state().snapshots[item.sourceId], isNew: !existing, theme: { ...theme, background: '#ffffff', foreground: '#243447', muted: '#657487', controlBackground: '#f6f8fa' }, renderer: 'canvas',
       runPreview(id, source) {
@@ -439,7 +445,7 @@
             }
           const widget = document.widgets.find(widget => widget.id === item.id), query = M.source({ ...draft.source, id: sourceId });
           if (existing) Object.assign(document.sources.find(source => source.id === sourceId), query); else document.sources.push(query);
-          widget.sourceId = sourceId; widget.title = draft.title; widget.config.chart = { ...widget.config.chart, ...draft.chart };
+          widget.sourceId = sourceId; widget.title = draft.title; widget.titleMode = draft.titleMode; widget.config.chart = { ...widget.config.chart, ...draft.chart };
         });
         if (!ok) throw new Error('The chart could not be applied. Check the report limits.');
           if (newComponent) select(item.id);
@@ -573,6 +579,7 @@
     click('redoReport', () => { history.redo(); execution.reconcile(current(), values); notifyChanges(); render(); });
     click('compactReport', () => { if (change(draft => M.compact(draft.widgets))) status('Vertical gaps closed. Columns and sizes retained; Undo restores the previous layout.'); });
     $('reportTitle').addEventListener('input', () => change(draft => { draft.title = $('reportTitle').value; }, { mergeKey: 'report.title', render: false }));
+    $('componentProperties').addEventListener('focusout', () => history.breakMerge());
     $('reportZoom').addEventListener('change', () => { zoom = Number($('reportZoom').value); renderCanvas(); });
     click('reportData', () => showData()); click('reportParameters', () => { renderParameters(); showDialog('reportParameterDialog'); });
     click('addReportSource', () => { const source = M.source({ name: `Query ${current().sources.length + 1}` }); if (change(draft => { draft.sources.push(source); })) { sourceSelection = source.id; renderSources(); } });

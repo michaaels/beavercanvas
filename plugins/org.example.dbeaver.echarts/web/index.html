@@ -62,6 +62,7 @@
         <div class="dashboard-commandbar" role="group" aria-label="Dashboard actions">
           <button id="addWidget" class="primary-action" type="button">+ Add widget</button>
           <button id="saveDashboard" type="button">Save dashboard</button>
+          <button id="undoDashboard" type="button" title="Undo (Ctrl+Z)" disabled>Undo</button><button id="redoDashboard" type="button" title="Redo (Ctrl+Y / Ctrl+Shift+Z)" disabled>Redo</button>
           <span class="command-divider" aria-hidden="true"></span>
           <button id="refreshDashboard" type="button">Refresh all</button>
           <button id="reviewDashboardSql" type="button">Review SQL</button>
@@ -120,6 +121,7 @@
   <dialog id="widgetEditor" class="widget-editor" aria-labelledby="widgetEditorHeading">
     <h2 id="widgetEditorHeading">Edit widget</h2>
     <label class="widget-editor-title">Title<input id="widgetEditorName" type="text" maxlength="200"></label>
+    <label class="widget-auto-title"><input id="widgetEditorAutoTitle" type="checkbox"> Use selected fields as title</label>
     <div class="widget-editor-steps" role="tablist" aria-label="Chart setup">
       <button id="widgetEditorQueryTab" type="button" role="tab" aria-controls="widgetEditorQueryPanel" aria-selected="true" data-editor-step="query">1. Query</button>
       <button id="widgetEditorDataTab" type="button" role="tab" aria-controls="widgetEditorDataPanel" aria-selected="false" tabindex="-1" data-editor-step="data">2. Data</button>
@@ -154,7 +156,7 @@
   <script src="js/echarts.min.js"></script>
   <script src="js/world-map.js"></script>
   <script src="js/geo-data.js"></script><script src="js/analytics.js"></script><script src="js/map-fields.js"></script>
-  <script src="js/dashboard-layout.js"></script>
+  <script src="js/dashboard-layout.js"></script><script src="js/document-history.js"></script>
   <script src="js/dashboard.js"></script>
   <script src="js/widget-editor.js"></script>
   <script src="js/chart.js"></script>

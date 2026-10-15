@@ -34,8 +34,11 @@ public final class ReportDesignerView extends ViewPart implements ISaveablePart 
         presentation.setReportSavedListener(() -> setDirty(false));
     }
     boolean load(String document) {
+        return load(document, null);
+    }
+    boolean load(String document, String previewData) {
         if (dirty && !MessageDialog.openConfirm(getSite().getShell(), "Report Designer", "Replace the current report? Save it first to keep its changes.")) return false;
-        presentation.loadReport(document); setDirty(true); return true;
+        presentation.loadReport(document, previewData); setDirty(true); return true;
     }
     private void setDirty(boolean value) { if (value != dirty) { dirty = value; firePropertyChange(PROP_DIRTY); } }
     @Override public void doSave(IProgressMonitor monitor) { save(false); }

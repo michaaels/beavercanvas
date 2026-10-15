@@ -421,7 +421,12 @@
   const hasRenderableData = option => Array.isArray(option?.series)
     && option.series.some(series => Array.isArray(series.data) && series.data.length > 0);
 
-  window.DBeaverEChartsAnalytics = Object.freeze({ buildOption, displayValue, hasRenderableData, toNumber, CHART_TYPES, populateTypes });
+  function chartTitle(config) {
+    if (config.chartType === 'map' && config.map) return `${config.map.value || 'Locations'} by ${config.map.label || 'location'}`.slice(0, 200);
+    const names = (config.yColumns || []).join(', ');
+    return (names ? `${names}${config.xColumn && config.chartType !== 'gauge' ? ` by ${config.xColumn}` : ''}` : 'Chart').slice(0, 200);
+  }
+  window.DBeaverEChartsAnalytics = Object.freeze({ buildOption, chartTitle, displayValue, hasRenderableData, toNumber, CHART_TYPES, populateTypes });
   if (typeof document !== 'undefined') {
     const select = document.getElementById('chartType'); if (select) populateTypes(select);
   }

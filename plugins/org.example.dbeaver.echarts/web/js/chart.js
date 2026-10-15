@@ -47,6 +47,34 @@
   let configurationSaveTimer = null;
   let lastDashboardRefresh = 0;
   let pendingReview = [];
+  let dashboardHistory;
+  const previewCache = new Map();
+  let previewBytes = 0;
+  function rememberPreview(widget, snapshot) {
+    if (!widget || !snapshot) return;
+    const key = sourceSignature(widget), bytes = JSON.stringify(snapshot).length * 2;
+    previewBytes -= previewCache.get(key)?.bytes || 0;
+    previewCache.delete(key); previewCache.set(key, { snapshot, bytes }); previewBytes += bytes;
+    while (previewBytes > 32 * 1024 * 1024) { const oldest = previewCache.keys().next().value; previewBytes -= previewCache.get(oldest).bytes; previewCache.delete(oldest); }
+  }
+  function resetHistory() {
+    dashboardHistory = window.DBeaverDocumentHistory.create(state.dashboard, window.DBeaverEChartsDashboard.normalizeDashboard);
+    previewCache.clear(); previewBytes = 0;
+  }
+  function historyControls() {
+    $('undoDashboard').disabled = !dashboardHistory.canUndo(); $('redoDashboard').disabled = !dashboardHistory.canRedo();
+  }
+  function restoreHistory(redo = false) {
+    if (!(redo ? dashboardHistory.canRedo() : dashboardHistory.canUndo())) return;
+    window.DBeaverEChartsDashboard.dispose();
+    resetDashboardQueries(); state.widgetRequests.clear(); state.widgetErrors.clear(); state.widgetSnapshots.clear();
+    state.dashboard = JSON.parse(JSON.stringify(redo ? dashboardHistory.redo() : dashboardHistory.undo()));
+    for (const widget of state.dashboard.widgets) {
+      const retained = previewCache.get(sourceSignature(widget));
+      if (retained) state.widgetSnapshots.set(widget.id, retained.snapshot);
+    }
+    render(); historyControls(); schedulePersistConfiguration();
+  }
 
   function $(id) { return document.getElementById(id); }
 
@@ -89,6 +117,15 @@
     });
 
     state.dashboard = window.DBeaverEChartsDashboard.createDashboard();
+    resetHistory();
+    $('undoDashboard').addEventListener('click', () => restoreHistory());
+    $('redoDashboard').addEventListener('click', () => restoreHistory(true));
+    document.addEventListener('keydown', event => {
+      if (!(event.ctrlKey || event.metaKey) || event.target.closest('input,textarea,select,[contenteditable=true]') || document.querySelector('dialog[open]')) return;
+      if (state.viewMode !== 'dashboard') return;
+      if (event.key.toLowerCase() === 'z' || event.key.toLowerCase() === 'y') { event.preventDefault(); restoreHistory(event.shiftKey || event.key.toLowerCase() === 'y'); }
+      else if (event.key.toLowerCase() === 's') { event.preventDefault(); saveDashboard(); }
+    });
     els.viewMode.addEventListener('change', () => updateConfiguration(() => {
       state.viewMode = els.viewMode.value;
     }));
@@ -110,15 +147,24 @@
     els.queryReview.addEventListener('cancel', closeQueryReview);
     els.dashboardTitle.addEventListener('input', () => {
       state.dashboard.title = els.dashboardTitle.value;
+      dashboardHistory.record(state.dashboard, 'dashboard.title'); historyControls();
       schedulePersistConfiguration();
     });
+    els.dashboardTitle.addEventListener('blur', () => dashboardHistory.breakMerge());
     const popovers = [...document.querySelectorAll('.toolbar-popover')];
     $('openReportDesigner').addEventListener('click', () => {
       const dashboard = state.viewMode === 'dashboard' ? state.dashboard : {
         title: state.snapshot?.source?.name || 'Report from chart',
         widgets: state.snapshot ? [window.DBeaverEChartsDashboard.createWidget(currentChartConfiguration(), state.snapshot)] : []
       };
-      if (window.dbeaverOpenReportDesigner?.(JSON.stringify(dashboard)) !== true) els.status.textContent = 'Report Designer could not open. Use Window > Show View > Other > BeaverCanvas > Report Designer.';
+      const snapshots = {};
+      for (const widget of dashboard.widgets) {
+        const snapshot = widget.source.kind === 'savedQuery' ? state.widgetSnapshots.get(widget.id) : state.snapshot;
+        if (!snapshot?.columns || !snapshot?.rows) continue;
+        snapshots[widget.id] = { columns: snapshot.columns.map(({ name, kind }) => ({ name, kind })),
+          rows: window.DBeaverEChartsDashboard.filterRows(snapshot.rows, snapshot.columns, dashboard.filters || {}), truncated: snapshot.truncated === true };
+      }
+      if (window.dbeaverOpenReportDesigner?.(JSON.stringify(dashboard), JSON.stringify(snapshots)) !== true) els.status.textContent = 'Report Designer could not open. Use Window > Show View > Other > BeaverCanvas > Report Designer.';
     });
     const closePopovers = except => popovers.forEach(popover => { if (popover !== except) popover.open = false; });
     const positionPopover = popover => {
@@ -284,6 +330,7 @@
     state.widgetSnapshots.clear();
     state.widgetErrors.clear();
     state.widgetRequests.clear();
+    resetHistory();
     syncMarkControls();
     if (state.snapshot) {
       configureFields(null, []);
@@ -316,6 +363,7 @@
     state.widgetSnapshots.clear();
     state.widgetErrors.clear();
     state.widgetRequests.clear();
+    resetHistory();
     if (els.chartType) els.chartType.value = state.chartType;
     if (els.renderer) els.renderer.value = state.renderer;
     if (els.viewMode) els.viewMode.value = state.viewMode;
@@ -536,6 +584,7 @@
   }
 
   function renderDashboard() {
+    historyControls();
     reconcileQuerySources();
     els.dashboardTitle.value = state.dashboard.title;
     const count = state.dashboard.widgets.length;
@@ -610,6 +659,7 @@
             state.widgetRequests.delete(normalized.id);
           }
           state.widgetSnapshots.set(normalized.id, snapshot);
+          rememberPreview(normalized, snapshot);
           state.widgetErrors.delete(normalized.id);
         }
         if (previewApproved && window.dbeaverApproveWidgetQueries?.(JSON.stringify([
@@ -627,6 +677,7 @@
   }
 
   function dashboardChanged() {
+    dashboardHistory.record(state.dashboard); historyControls();
     render();
     schedulePersistConfiguration();
   }
@@ -790,6 +841,7 @@
       state.widgetRequests.delete(widgetId);
       state.widgetErrors.delete(widgetId);
       state.widgetSnapshots.set(widgetId, snapshot);
+      rememberPreview(state.dashboard.widgets.find(widget => widget.id === widgetId), snapshot);
       if (state.viewMode === 'dashboard') renderDashboard();
     } catch (error) {
       setWidgetError(widgetId, error instanceof Error ? error.message : String(error));
@@ -867,6 +919,7 @@
     state.standalone = standalone;
     documentBodyMode(standalone);
     state.dashboard = dashboard;
+    resetHistory();
     state.renderer = dashboard.renderer;
     els.renderer.value = state.renderer;
     state.viewMode = 'dashboard';

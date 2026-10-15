@@ -1,6 +1,21 @@
 # Changelog
 
-## Unreleased
+## 0.6.6 beta — 2026-10-15
+
+- Route focused SWT browser shortcuts to BeaverCanvas and restore the workbench
+  key filter on blur/disposal; preserve native text editing in Query.
+- Generate widget titles from selected fields until the user chooses a custom title.
+- Transfer displayed dashboard results and filters into Report Designer without
+  executing SQL or persisting runtime rows/approval in templates.
+- Add bounded dashboard undo/redo and both Ctrl+Y/Ctrl+Shift+Z; reuse matching
+  preview data when undoing query changes in dashboards and reports.
+- Update numeric page/component properties on input while retaining field focus.
+- Reorder crossed rows during chart dragging with identical preview/drop plans;
+  fill the vacated row, retain section boundaries, and cancel with Escape.
+- Configure maps with separate latitude/longitude, paired coordinates or
+  GeoJSON/WKT points; choose point names, measures and tooltip fields explicitly.
+- Retain the previous query result and its SQL in Data while editing/running a
+  replacement query; failed/cancelled previews do not discard the reference data.
 
 - Fit new SQL tables to their height, with a fixed maximum option for existing
   layouts; keep pagination complete and independent of designer zoom.

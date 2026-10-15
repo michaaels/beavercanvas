@@ -6,7 +6,7 @@ const vm = require('node:vm');
 const window = {};
 const context = vm.createContext({ window, console, TextEncoder, btoa: text => Buffer.from(text, 'binary').toString('base64') });
 const web = path.resolve(__dirname, '../plugins/org.example.dbeaver.echarts/web');
-for (const file of ['geo-data', 'dashboard-layout', 'report-model', 'report-execution', 'report-export']) vm.runInContext(fs.readFileSync(path.join(web, 'js', file + '.js'), 'utf8'), context);
+for (const file of ['geo-data', 'dashboard-layout', 'document-history', 'report-model', 'report-execution', 'report-export']) vm.runInContext(fs.readFileSync(path.join(web, 'js', file + '.js'), 'utf8'), context);
 const M = window.DBeaverReportModel, E = window.DBeaverReportExecution, X = window.DBeaverReportExport;
 const report = M.create('Indicadores de red');
 report.parameters.push({ name: 'start_date', label: 'Start date', type: 'date', default: '2026-10-01' });

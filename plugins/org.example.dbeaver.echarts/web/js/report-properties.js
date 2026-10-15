@@ -9,7 +9,16 @@
     if (type === 'checkbox') { control.checked = Boolean(value); row.className = 'report-check'; }
     else control.value = value ?? '';
     control.setAttribute('aria-label', label);
-    control.addEventListener(['text', 'textarea', 'color'].includes(type) ? 'input' : 'change', () => action(type === 'checkbox' ? control.checked : type === 'number' ? Number(control.value) : control.value));
+    let lastNumber = control.value;
+    const apply = () => {
+      if (type === 'number') {
+        if (control.value === '' || !Number.isFinite(control.valueAsNumber) || control.value === lastNumber) return;
+        lastNumber = control.value;
+      }
+      action(type === 'checkbox' ? control.checked : type === 'number' ? control.valueAsNumber : control.value);
+    };
+    control.addEventListener(['text', 'textarea', 'color', 'number'].includes(type) ? 'input' : 'change', apply);
+    if (type === 'number') control.addEventListener('change', apply);
     row.append(control); return row;
   }
   function section(root, title) { const body = node('section', undefined, 'report-property-section'); body.append(node('h3', title)); root.append(body); return body; }
@@ -28,7 +37,10 @@
       body.append(node('summary', title));
       return body;
     };
-    const change = (action, key, textEdit = false) => hooks.change(action, { mergeKey: key, render: !textEdit });
+    const change = (action, key, textEdit = false) => {
+      const active = document.activeElement, live = root.contains(active) && active.type === 'number';
+      hooks.change(action, { mergeKey: key || (live ? `${item?.id || 'page'}.${active.getAttribute('aria-label')}` : undefined), render: !textEdit && !live });
+    };
     if (!item) {
       root.append(field('Description', report.description, 'textarea', value => change(draft => { draft.description = value; }, 'report.description', true)),
         field('Category', report.category, 'text', value => change(draft => { draft.category = value; }, 'report.category', true)),
@@ -51,7 +63,7 @@
     function update(fieldName, value, key, textEdit = false) {
       change(draft => { const widget = draft.widgets.find(widget => widget.id === item.id); fieldName(widget, value); draft.priorityId = item.id; }, key && `${item.id}.${key}`, textEdit);
     }
-    root.append(field('Component title', item.title, 'text', value => update((widget, value) => { widget.title = value; }, value, 'title', true)));
+    root.append(field('Component title', item.title, 'text', value => update((widget, value) => { widget.title = value; widget.titleMode = 'custom'; }, value, 'title', true)));
     const position = advancedSection('Position and size'), grid = node('div', undefined, 'report-property-grid');
     for (const [name, label] of [['x', 'Column'], ['y', 'Row'], ['width', 'Width (columns)'], ['height', 'Height (rows)']]) {
       grid.append(field(label, item.layout[name], 'number', value => update((widget, value) => { widget.layout[name] = value; }, value)));

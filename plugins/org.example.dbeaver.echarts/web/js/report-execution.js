@@ -4,9 +4,23 @@
   function create(bridge, onChange = () => {}) {
     let epoch = 0, requests = new Map(), snapshots = {}, errors = {}, loading = new Set(), generatedAt = null;
     let queue = [], currentDocument = null, currentValues = {}, stopped = false;
+    const previewCache = new Map();
+    let cacheBytes = 0;
+    const cacheKey = (document, source, values) => JSON.stringify([source, document.parameters, values]);
+    function remember() {
+      if (!currentDocument) return;
+      for (const source of currentDocument.sources) {
+        const snapshot = snapshots[source.id]; if (!snapshot) continue;
+        const key = cacheKey(currentDocument, source, currentValues), bytes = JSON.stringify(snapshot).length * 2;
+        cacheBytes -= previewCache.get(key)?.bytes || 0;
+        previewCache.delete(key); previewCache.set(key, { snapshot, bytes }); cacheBytes += bytes;
+        while (cacheBytes > 32 * 1024 * 1024) { const oldest = previewCache.keys().next().value; cacheBytes -= previewCache.get(oldest).bytes; previewCache.delete(oldest); }
+      }
+    }
     const state = () => ({ snapshots, errors, loading, generatedAt, running: requests.size, pending: queue.length });
     function notify() { onChange(state()); }
-    function reset() {
+    function reset(clearCache = true) {
+      if (clearCache) { previewCache.clear(); cacheBytes = 0; }
       epoch++; stopped = true;
       for (const id of requests.keys()) bridge.cancel?.(id, true);
       bridge.reset?.(); requests.clear(); queue = [];
@@ -85,8 +99,12 @@
     function reconcile(document, values) {
       const same = currentDocument && JSON.stringify(document.sources) === JSON.stringify(currentDocument.sources)
         && JSON.stringify(document.parameters) === JSON.stringify(currentDocument.parameters) && JSON.stringify(values) === JSON.stringify(currentValues);
-      if (currentDocument && !same) reset();
+      if (currentDocument && !same) { remember(); reset(false); }
       currentDocument = model.clone(document); currentValues = model.clone(values);
+      for (const source of document.sources) {
+        const retained = previewCache.get(cacheKey(document, source, values));
+        if (!snapshots[source.id] && retained) snapshots[source.id] = retained.snapshot;
+      }
       const used = new Set(document.sources.map(source => source.id));
       for (const sourceId of Object.keys(snapshots)) if (!used.has(sourceId)) delete snapshots[sourceId];
     }

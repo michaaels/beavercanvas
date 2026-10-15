@@ -11,7 +11,7 @@
 
   function init() {
     if (elements) return;
-    elements = Object.fromEntries(['Heading', 'Name', 'Connection', 'Sql', 'Run', 'Stop', 'Status', 'Error',
+    elements = Object.fromEntries(['Heading', 'Name', 'AutoTitle', 'Connection', 'Sql', 'Run', 'Stop', 'Status', 'Error',
       'Type', 'Category', 'Refresh', 'Series', 'Mean', 'Range', 'Scale', 'Preview', 'Data', 'DataHint', 'DataSql', 'ChooseChart', 'Map', 'Save', 'Cancel']
       .map(name => [name, document.getElementById(`widgetEditor${name}`)]));
     elements.dialog = document.getElementById('widgetEditor');
@@ -32,7 +32,8 @@
     hint.setAttribute('role', 'status'); elements.Type.closest('.widget-editor-fields').after(hint);
     elements.Type.setAttribute('aria-describedby', hint.id);
     elements.Hint = hint;
-    elements.Name.addEventListener('input', () => { session.draft.title = elements.Name.value.slice(0, 200); updateSave(); });
+    elements.Name.addEventListener('input', () => { session.draft.title = elements.Name.value.slice(0, 200); session.draft.titleMode = 'custom'; elements.AutoTitle.checked = false; updateSave(); });
+    elements.AutoTitle.addEventListener('change', () => { session.draft.titleMode = elements.AutoTitle.checked ? 'auto' : 'custom'; renderPreview(); });
     elements.Sql.addEventListener('input', sourceChanged);
     elements.Connection.addEventListener('change', sourceChanged);
     elements.Type.addEventListener('change', () => { session.draft.chart.chartType = elements.Type.value; renderFields(); renderPreview(); });
@@ -74,6 +75,8 @@
       previewApproved: false, previewId: null, loading: false, step: 'query', theme, renderer, hooks };
     elements.Heading.textContent = `${isNew ? 'Add' : 'Edit'} ${componentName}`;
     elements.Save.textContent = `Apply ${componentName}`;
+    draft.titleMode ||= isNew || ['Chart', (draft.chart.yColumns || []).join(', '), window.DBeaverEChartsAnalytics.chartTitle(draft.chart)].includes(draft.title) ? 'auto' : 'custom';
+    elements.AutoTitle.checked = draft.titleMode === 'auto';
     elements.Name.value = draft.title;
     elements.Sql.value = draft.source.sql;
     if (![...elements.Type.querySelectorAll('option')].some(option => option.value === draft.chart.chartType)) draft.chart.chartType = 'line';
@@ -320,6 +323,7 @@
 
   function disposeChart() { observer?.disconnect(); observer = null; chart?.dispose(); chart = null; }
   function renderPreview() {
+    if (session.draft.titleMode === 'auto') { session.draft.title = window.DBeaverEChartsAnalytics.chartTitle(session.draft.chart); elements.Name.value = session.draft.title; }
     disposeChart();
     elements.Preview.replaceChildren();
     session.chartError = false;

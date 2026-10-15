@@ -32,9 +32,8 @@
       : chartConfiguration.yColumn ? [chartConfiguration.yColumn] : [];
     return {
       id: nextId(),
-      title: chartConfiguration.chartType === 'map' && chartConfiguration.map
-        ? `Map: ${chartConfiguration.map.value || chartConfiguration.map.label || 'Locations'}`
-        : yColumns.length ? yColumns.join(', ') : 'Chart',
+      title: window.DBeaverEChartsAnalytics.chartTitle({ ...chartConfiguration, yColumns }),
+      titleMode: 'auto',
       source: normalizeSource(snapshot?.source),
       chart: {
         chartType: chartConfiguration.chartType || 'line',
@@ -106,6 +105,7 @@
     return {
       id: typeof value?.id === 'string' && value.id ? value.id : nextId(),
       title: typeof value?.title === 'string' ? value.title.slice(0, 200) : 'Chart',
+      titleMode: value?.titleMode === 'auto' ? 'auto' : 'custom',
       source: normalizeSource(value?.source),
       chart: {
         chartType: typeof chart.chartType === 'string' ? chart.chartType : 'line',
@@ -203,7 +203,8 @@
         if (!delta || activeGesture) return;
         event.preventDefault();
         const layout = proposedLayout(widget.layout, mode, delta[0], delta[1], edge);
-        layoutEngine.changeLayout(dashboard.widgets, widget.id, layout);
+        if (mode === 'move') layoutEngine.moveInFlow(dashboard.widgets, widget.id, layout);
+        else layoutEngine.changeLayout(dashboard.widgets, widget.id, layout);
         onChange();
         const updated = [...root.children].find(child => child.dataset.widgetId === widget.id);
         updated?.querySelector(mode === 'move' ? '.widget-drag-handle' : `[data-resize-edge="${edge}"]`)?.focus();
@@ -220,7 +221,21 @@
   function startLayoutGesture(event, mode, root, element, handle, widget, dashboard, onChange, edge = 'se') {
     if (activeGesture || (event.button ?? 0) !== 0 || event.isPrimary === false) return;
     event.preventDefault();
+    handle.focus();
     const initial = { ...widget.layout };
+    const baseline = dashboard.widgets.map(widget => ({ ...widget, layout: { ...widget.layout } }));
+    function planned() {
+      const widgets = baseline.map(widget => ({ ...widget, layout: { ...widget.layout } }));
+      if (mode === 'move') layoutEngine.moveInFlow(widgets, widget.id, candidate);
+      else layoutEngine.changeLayout(widgets, widget.id, candidate);
+      return widgets;
+    }
+    function applyPlan(widgets) {
+      for (const item of widgets) {
+        const frame = [...root.children].find(child => child.dataset.widgetId === item.id);
+        if (frame) applyLayout(frame, item.layout);
+      }
+    }
     const origin = root.getBoundingClientRect();
     const styles = window.getComputedStyle?.(root);
     const gap = parseFloat(styles?.columnGap) || layoutEngine.GAP;
@@ -250,14 +265,12 @@
       const dy = Math.round((pointer.clientY - startY - current.top + origin.top) / pitchY);
       const previous = candidate;
       candidate = proposedLayout(initial, mode, dx, dy, edge);
-      applyLayout(preview, candidate);
+      const widgets = planned(); applyPlan(widgets);
+      applyLayout(preview, widgets.find(item => item.id === widget.id).layout);
       if (mode === 'resize') {
-        applyLayout(element, candidate);
         if (candidate.width !== previous.width || candidate.height !== previous.height) {
           chartInstances.get(widget.id)?.resize();
         }
-      } else {
-        element.style.transform = `translate(${(candidate.x - initial.x) * pitchX}px, ${(candidate.y - initial.y) * pitchY}px)`;
       }
     }
 
@@ -277,13 +290,15 @@
       preview.remove();
       element.style.transform = '';
       applyLayout(element, initial);
+      applyPlan(baseline);
       element.classList.remove('widget-layout-active');
       root.classList.remove('dashboard-layout-active');
       root.style.cursor = previousCursor;
       chartInstances.get(widget.id)?.resize();
       const changed = ['x', 'y', 'width', 'height'].some(key => candidate[key] !== initial[key]);
       if (commit && changed) {
-        layoutEngine.changeLayout(dashboard.widgets, widget.id, candidate);
+        if (mode === 'move') layoutEngine.moveInFlow(dashboard.widgets, widget.id, candidate);
+        else layoutEngine.changeLayout(dashboard.widgets, widget.id, candidate);
         onChange();
       } else if (deferred) { render(deferred); }
     }
@@ -335,6 +350,7 @@
     title.title = 'Click to rename';
     title.addEventListener('blur', () => {
       widget.title = title.textContent.trim().slice(0, 200) || 'Chart';
+      widget.titleMode = 'custom';
       onChange();
     });
 
@@ -532,6 +548,7 @@
     createDashboard,
     createWidget,
     buildContext,
+    filterRows,
     dispose,
     normalizeDashboard,
     portableDashboard,

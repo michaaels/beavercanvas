@@ -380,6 +380,8 @@ button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-v
 /* Location and point data replace Cartesian axes; share the same controls in both editors. */
 .map-fields { display: grid; align-content: start; gap: 12px; min-width: 0; }
 .widget-editor-data-query { margin: 10px 0 16px; }
+.widget-editor .widget-auto-title { display: flex; align-items: center; gap: 7px; margin: 6px 0; }
+.widget-editor .widget-auto-title input { width: auto; }
 .widget-editor-data-query pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 160px; overflow: auto; }
 .map-fields fieldset { border: 1px solid var(--border); padding: 12px; margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; min-width: 0; }
 .map-fields legend { font-weight: 600; padding: 0 4px; }

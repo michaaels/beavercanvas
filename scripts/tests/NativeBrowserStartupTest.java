@@ -71,6 +71,7 @@ public final class NativeBrowserStartupTest implements BundleActivator {
                 throw new AssertionError("Second report startup failed: " + error);
             }
             waitFor(display, () -> ready(opened), "second Report Designer");
+            if (Arrays.stream(presentationType.getDeclaredMethods()).anyMatch(method -> method.getName().equals("publishReport"))) testEditingWorkflow(display, plugin, second.get(), opened);
             if (defer == null) throw new AssertionError("Opening was synchronous; production deferral is missing");
             if (Arrays.stream(presentationType.getDeclaredMethods()).anyMatch(method -> method.getName().equals("writeReportExport"))) testDraftSave(display, source, browser);
             AtomicBoolean staleAction = new AtomicBoolean();
@@ -118,6 +119,37 @@ public final class NativeBrowserStartupTest implements BundleActivator {
             if (!eml.contains("X-Unsent: 1\r\n") || !eml.contains("To: \r\n")) throw new AssertionError("Blank-recipient draft was not written correctly");
             System.out.println("Native draft export OK: empty recipient, deferred write, EML file and frontend acknowledgement; controlled path, no email sent");
         } finally { save.dispose(); Files.deleteIfExists(file); Files.deleteIfExists(folder); }
+    }
+
+    private void testEditingWorkflow(Display display, Bundle plugin, Object target, Browser browser) throws Exception {
+        Class<?> keys = plugin.loadClass("org.example.dbeaver.echarts.BrowserKeyBindings");
+        var constructor = keys.getDeclaredConstructors()[0]; constructor.setAccessible(true);
+        Class<?> serviceType = constructor.getParameterTypes()[0];
+        AtomicBoolean enabled = new AtomicBoolean(true);
+        Object service = java.lang.reflect.Proxy.newProxyInstance(serviceType.getClassLoader(), new Class<?>[] { serviceType }, (proxy, method, arguments) -> {
+            if (method.getName().equals("isKeyFilterEnabled")) return enabled.get();
+            if (method.getName().equals("setKeyFilterEnabled")) enabled.set((Boolean) arguments[0]);
+            return null;
+        });
+        Object lease = constructor.newInstance(service); Method attach = keys.getDeclaredMethod("attach", Browser.class); attach.setAccessible(true); attach.invoke(lease, browser);
+        browser.notifyListeners(SWT.FocusIn, new org.eclipse.swt.widgets.Event());
+        if (enabled.get()) throw new AssertionError("Focused SWT Browser still has host key interception");
+        browser.notifyListeners(SWT.FocusOut, new org.eclipse.swt.widgets.Event());
+        if (!enabled.get()) throw new AssertionError("Blur did not restore workbench shortcuts");
+        Method load = presentationType.getDeclaredMethod("loadReport", String.class, String.class); load.setAccessible(true);
+        String report = """
+            {"format":"dbeaver-echarts-report","schemaVersion":1,"sources":[{"id":"q","sql":"SELECT city, sales FROM demo"}],
+             "widgets":[{"id":"populated","type":"chart","sourceId":"q","layout":{"x":0,"y":0,"width":12,"height":8},
+             "config":{"chart":{"chartType":"bar","xColumn":"city","yColumns":["sales"]}}}]}
+            """;
+        String runtime = """
+            {"q":{"schemaVersion":1,"columns":[{"name":"city","kind":"STRING"},{"name":"sales","kind":"NUMERIC"}],"rows":[["Quito",100],["Cuenca",80]]}}
+            """;
+        load.invoke(target, report, runtime);
+        waitFor(display, () -> Boolean.TRUE.equals(browser.evaluate("return document.querySelectorAll('.report-chart canvas').length===1 && document.getElementById('reportStatus').textContent.includes('Dashboard data ready');")), "transient preview load");
+        String saved = (String) browser.evaluate("return JSON.stringify(window.DBeaverECharts.reportDocument());");
+        if (saved.contains("\"rows\"")) throw new AssertionError("Transient rows entered the template");
+        System.out.println("Native editing workflow OK: SWT focus routes/restores key filter; transferred preview renders without SQL and stays outside template; workbench service simulated");
     }
 
     private Object create(Shell shell) throws Exception {

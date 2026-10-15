@@ -53,7 +53,7 @@ function page() {
   window.dbeaverRefreshResult = () => { throw new Error('A saved dashboard must use widget SQL'); };
   const sandbox = { window, document, Option, console, Date: { now: () => now }, Map, Set };
   vm.createContext(sandbox);
-  for (const file of ['geo-data.js', 'analytics.js', 'map-fields.js', 'dashboard-layout.js', 'dashboard.js', 'widget-editor.js', 'chart.js']) {
+  for (const file of ['geo-data.js', 'analytics.js', 'map-fields.js', 'dashboard-layout.js', 'document-history.js', 'dashboard.js', 'widget-editor.js', 'chart.js']) {
     vm.runInContext(fs.readFileSync(web + 'js/' + file, 'utf8'), sandbox);
   }
   window.dispatchEvent(new window.Event('DOMContentLoaded'));
