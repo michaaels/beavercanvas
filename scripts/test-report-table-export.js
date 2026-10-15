@@ -5,7 +5,7 @@ const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { launchBrowser } = require('./browser-test-runtime');
 const root = path.resolve(__dirname, '..'), web = path.join(root, 'plugins/org.example.dbeaver.echarts/web');
-const assets = Object.fromEntries([['echarts', 'js/echarts.min.js'], ['worldMap', 'js/world-map.js'], ['analytics', 'js/analytics.js'],
+const assets = Object.fromEntries([['echarts', 'js/echarts.min.js'], ['worldMap', 'js/world-map.js'], ['geoData', 'js/geo-data.js'], ['analytics', 'js/analytics.js'],
   ['widgets', 'js/report-widgets.js'], ['paperCss', 'css/report-paper.css']].map(([key, file]) => [key, fs.readFileSync(path.join(web, file), 'utf8')]));
 assets.licenses = fs.readFileSync(path.join(web, '../third-party/echarts/LICENSE'), 'utf8');
 async function main() {

@@ -6,7 +6,7 @@
   function interactive(report, snapshots, context, assets) {
     if (!assets?.echarts || !assets?.widgets || !assets?.paperCss) throw new Error('Report export assets are not available.');
     const portable = { title: report.title, page: report.page, widgets: report.widgets };
-    const scripts = [assets.echarts, assets.worldMap, assets.analytics, assets.widgets].filter(Boolean).map(code => `<script>${safeScript(code)}</script>`).join('\n');
+    const scripts = [assets.echarts, assets.worldMap, assets.geoData, assets.analytics, assets.widgets].filter(Boolean).map(code => `<script>${safeScript(code)}</script>`).join('\n');
     const runtime = `const report=${safeJson(portable)};const data=${safeJson(snapshots)};const context=${safeJson({ generatedAt: context.generatedAt, parameters: context.parameters, tablePages: context.tablePages, tableViews: context.tableViews, lockTableViews: context.lockTableViews })};window.DBeaverReportWidgets.renderReport(document.getElementById('report'),report,data,context);`;
     return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escape(report.title)}</title><style>body{margin:0;background:#f3f6f9} .report-paper{max-width:100%}${assets.paperCss}</style></head><body><main id="report"></main>${scripts}<script>${runtime}</script><details style="margin:16px;font:12px sans-serif"><summary>Third-party licenses</summary><pre style="white-space:pre-wrap">${escape(assets.licenses || '')}</pre></details></body></html>`;
   }

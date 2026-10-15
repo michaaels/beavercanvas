@@ -52,10 +52,10 @@
     const config = widget.config.chart, columns = snapshot.columns;
     const xIndex = columns.findIndex(column => column.name === config.xColumn);
     const yIndices = config.yColumns.map(name => columns.findIndex(column => column.name === name && column.kind === 'NUMERIC')).filter(index => index >= 0);
-    if (xIndex < 0 || !yIndices.length) throw new Error('Choose a category and numeric series in Chart properties.');
+    if (config.chartType !== 'map' && (xIndex < 0 || !yIndices.length)) throw new Error('Choose a category and numeric series in Chart properties.');
     const option = window.DBeaverEChartsAnalytics.buildOption({ rows: snapshot.rows, columns, rowCount: snapshot.rows.length, xIndex, yIndices,
       yAxes: Object.fromEntries(yIndices.map(index => [index, config.yAxes[columns[index].name] || 'left'])),
-      chartType: config.chartType, marks: config.marks, theme: { ...THEME, background: widget.style.background === 'transparent' ? '#ffffff' : widget.style.background }, dashboard: true });
+      chartType: config.chartType, map: config.map, marks: config.marks, theme: { ...THEME, background: widget.style.background === 'transparent' ? '#ffffff' : widget.style.background }, dashboard: true });
     option.animation = false;
     if (config.colors?.length) option.color = config.colors;
     if (option.legend) option.legend.show = config.legend !== false;

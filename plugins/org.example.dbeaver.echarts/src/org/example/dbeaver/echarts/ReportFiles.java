@@ -113,7 +113,24 @@ final class ReportFiles {
                 && Set.of("left", "right").contains(axis.getValue().getAsString())) axes.add(axis.getKey(), axis.getValue().deepCopy());
         }
         chart.add("yAxes", axes);
+        if (input.has("map")) {
+            if (!input.get("map").isJsonObject()) throw new IllegalArgumentException("Invalid map configuration.");
+            chart.add("map", normalizeMap(input.getAsJsonObject("map")));
+        }
         return chart;
+    }
+
+    private static JsonObject normalizeMap(JsonObject input) {
+        JsonObject map = fields(input, "mode", "longitude", "latitude", "location", "order", "label", "value", "details");
+        for (var entry : map.entrySet()) {
+            if (entry.getKey().equals("details")) {
+                if (!entry.getValue().isJsonArray()) throw new IllegalArgumentException("Invalid map tooltip fields.");
+            } else if (!entry.getValue().isJsonPrimitive() || !entry.getValue().getAsJsonPrimitive().isString()
+                || entry.getValue().getAsString().length() > 200) throw new IllegalArgumentException("Invalid map field: " + entry.getKey());
+        }
+        if (map.has("mode") && !Set.of("latLon", "coordinates", "geo").contains(map.get("mode").getAsString())) throw new IllegalArgumentException("Invalid map location format.");
+        if (map.has("order") && !Set.of("lonLat", "latLon").contains(map.get("order").getAsString())) throw new IllegalArgumentException("Invalid coordinate order.");
+        return map;
     }
 
     private static JsonArray normalizeColumns(JsonObject input) {
@@ -154,7 +171,7 @@ final class ReportFiles {
             var value = input.get(name);
             if (value.isJsonObject()) throw new IllegalArgumentException("Invalid nested report field: " + name);
             if (value.isJsonArray()) {
-                if (!Set.of("yColumns", "colors").contains(name) || value.getAsJsonArray().size() > 12) throw new IllegalArgumentException("Invalid report list: " + name);
+                if (!Set.of("yColumns", "colors", "details").contains(name) || value.getAsJsonArray().size() > 12) throw new IllegalArgumentException("Invalid report list: " + name);
                 for (var item : value.getAsJsonArray()) if (!item.isJsonPrimitive() || !item.getAsJsonPrimitive().isString() || item.getAsString().length() > 200) throw new IllegalArgumentException("Invalid report list value.");
             }
             clean.add(name, value.deepCopy());

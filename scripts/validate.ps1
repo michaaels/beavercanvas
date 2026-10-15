@@ -42,6 +42,8 @@ if ($Node) {
     }
     & node 'scripts\test-analytics.js'
     if ($LASTEXITCODE -ne 0) { throw 'Analytical chart option tests failed' }
+    & node 'scripts\test-map-data.js'
+    if ($LASTEXITCODE -ne 0) { throw 'Map coordinate and persistence tests failed' }
     & node 'scripts\test-dashboard.js'
     if ($LASTEXITCODE -ne 0) { throw 'Dashboard schema tests failed' }
     & node 'scripts\test-dashboard-layout.js'

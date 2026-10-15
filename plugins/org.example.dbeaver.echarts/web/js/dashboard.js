@@ -32,12 +32,15 @@
       : chartConfiguration.yColumn ? [chartConfiguration.yColumn] : [];
     return {
       id: nextId(),
-      title: yColumns.length ? yColumns.join(', ') : 'Chart',
+      title: chartConfiguration.chartType === 'map' && chartConfiguration.map
+        ? `Map: ${chartConfiguration.map.value || chartConfiguration.map.label || 'Locations'}`
+        : yColumns.length ? yColumns.join(', ') : 'Chart',
       source: normalizeSource(snapshot?.source),
       chart: {
         chartType: chartConfiguration.chartType || 'line',
         xColumn: chartConfiguration.xColumn || null,
         yColumns,
+        ...(chartConfiguration.map ? { map: window.DBeaverGeoData.normalize(chartConfiguration.map) } : {}),
         yAxes: chartConfiguration.yAxes || {},
         marks: chartConfiguration.marks || {}
       },
@@ -108,6 +111,7 @@
         chartType: typeof chart.chartType === 'string' ? chart.chartType : 'line',
         xColumn: typeof chart.xColumn === 'string' ? chart.xColumn : null,
         yColumns: Array.isArray(chart.yColumns) ? chart.yColumns.filter(name => typeof name === 'string').slice(0, 12) : [],
+        ...(chart.map ? { map: window.DBeaverGeoData.normalize(chart.map) } : {}),
         yAxes: normalizeDictionary(chart.yAxes),
         marks: normalizeDictionary(chart.marks)
       },
@@ -425,6 +429,9 @@
         : 'Run the widget source query or select compatible columns.';
       return;
     }
+    let option;
+    try { option = window.DBeaverEChartsAnalytics.buildOption(context); }
+    catch (error) { element.classList.add('message'); element.textContent = error.message; return; }
     const chart = window.echarts.init(element, null, { renderer });
     chartInstances.set(widget.id, chart);
     if (typeof ResizeObserver === 'function') {
@@ -432,14 +439,16 @@
       observer.observe(element);
       resizeObservers.set(widget.id, observer);
     }
-    const option = window.DBeaverEChartsAnalytics.buildOption(context);
     chart.setOption(option, { notMerge: true, lazyUpdate: false });
     if (widget.drillDown.enabled) {
       chart.on('click', event => {
-        const value = categoryFromEvent(event);
+        const map = widget.chart.chartType === 'map' ? window.DBeaverGeoData.infer(widget.chart, snapshot.columns) : null;
+        const field = map ? map.label : widget.chart.xColumn;
+        const value = map ? event.data?.filterValue : categoryFromEvent(event);
+        if (!field || value === undefined) return;
         if (value === null) return;
-        dashboard.filters[widget.chart.xColumn] = value;
-        dashboard.variables[widget.chart.xColumn] = value;
+        dashboard.filters[field] = value;
+        dashboard.variables[field] = value;
         onChange();
       });
     }
@@ -451,7 +460,7 @@
     const yIndices = widget.chart.yColumns
       .map(name => snapshot.columns.findIndex(column => column.name === name && column.kind === 'NUMERIC'))
       .filter(index => index >= 0);
-    if (xIndex < 0 || !yIndices.length) return null;
+    if (widget.chart.chartType !== 'map' && (xIndex < 0 || !yIndices.length)) return null;
     const rows = filterRows(snapshot.rows, snapshot.columns, dashboard.filters);
     const yAxes = Object.fromEntries(yIndices.map(index => [
       index,
@@ -465,6 +474,7 @@
       yIndices,
       yAxes,
       chartType: widget.chart.chartType,
+      map: widget.chart.map,
       dashboard: true,
       marks: widget.chart.marks,
       theme

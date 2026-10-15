@@ -38,6 +38,7 @@ if command -v node >/dev/null 2>&1; then
     echo "JavaScript OK: $(basename "$javascript")"
   done
   node scripts/test-analytics.js
+  node scripts/test-map-data.js
   node scripts/test-dashboard.js
   node scripts/test-dashboard-layout.js
   node scripts/test-report-model.js

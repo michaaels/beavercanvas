@@ -53,7 +53,7 @@ function page() {
   window.dbeaverRefreshResult = () => { throw new Error('A saved dashboard must use widget SQL'); };
   const sandbox = { window, document, Option, console, Date: { now: () => now }, Map, Set };
   vm.createContext(sandbox);
-  for (const file of ['analytics.js', 'dashboard-layout.js', 'dashboard.js', 'widget-editor.js', 'chart.js']) {
+  for (const file of ['geo-data.js', 'analytics.js', 'map-fields.js', 'dashboard-layout.js', 'dashboard.js', 'widget-editor.js', 'chart.js']) {
     vm.runInContext(fs.readFileSync(web + 'js/' + file, 'utf8'), sandbox);
   }
   window.dispatchEvent(new window.Event('DOMContentLoaded'));
@@ -115,8 +115,14 @@ const changedSql = "SELECT fecha, ventas, costos FROM ciudad WHERE nombre = 'Cue
 reader.document.getElementById('widgetEditorSql').value = changedSql;
 reader.document.getElementById('widgetEditorSql').dispatchEvent(new reader.window.Event('input'));
 reader.change(reader.document.getElementById('widgetEditorConnection'), '1');
+assert.equal(reader.document.getElementById('widgetEditorSave').disabled, true, 'Previous result cannot approve a new SQL binding');
+assert.ok(reader.document.querySelectorAll('#widgetEditorData tr').length > 1, 'Data retains the previous query result');
+assert.equal(reader.document.getElementById('widgetEditorDataSql').textContent, sqlA);
 reader.click('widgetEditorSave');
-assert.equal(reader.queries.length, 2, 'Changing SQL and connection invalidates approval');
+assert.equal(reader.queries.length, 2, 'Changing SQL and connection never executes SQL');
+reader.click('widgetEditorRun');
+reader.api.setWidgetSnapshot(reader.queries.at(-1).id, snapshot(changedSql));
+reader.click('widgetEditorSave');
 reader.document.querySelector('.widget-footer button').dispatchEvent(new reader.window.Event('click'));
 reader.click('runReviewedQueries');
 assert.equal(reader.queries.at(-1).sql, changedSql);
@@ -317,12 +323,18 @@ builder.api.setWidgetSnapshot(refreshingWidget.id, independentSnapshot);
 assert.equal(builder.document.getElementById('widgetEditorSql').value, draftSql, 'Background rendering preserves SQL drafts');
 builder.api.setTheme({ background: '#222222', foreground: '#eeeeee', dark: true });
 assert.equal(builder.document.getElementById('widgetEditorSql').value, draftSql, 'Theme changes preserve SQL drafts');
+assert.equal(builder.document.getElementById('widgetEditorSave').disabled, true, 'A changed SQL requires a fresh preview');
+assert.equal(builder.document.getElementById('widgetEditorDataSql').textContent, widgetSql);
+assert.equal(builder.document.querySelectorAll('#widgetEditorData tr').length, 3);
 builder.click('widgetEditorSave');
-assert.equal(builder.api.dashboardDocument().widgets[0].source.sql, draftSql, 'An existing mapping can save SQL before previewing it');
+assert.equal(builder.api.dashboardDocument().widgets[0].source.sql, widgetSql, 'Stale data cannot be applied to a new query');
+builder.click('widgetEditorRun');
+builder.api.setWidgetSnapshot(builder.queries.at(-1).id, independentSnapshot);
+builder.click('widgetEditorSave');
+assert.equal(builder.api.dashboardDocument().widgets[0].source.sql, draftSql);
 const beforeReview = builder.queries.length;
 builder.click('refreshDashboard');
-assert.equal(builder.queries.length, beforeReview, 'Changing a query without preview invalidates execution approval');
-assert.ok(builder.document.getElementById('queryReview').hasAttribute('open'));
+assert.equal(builder.queries.length, beforeReview + 1, 'The explicitly previewed query can refresh');
 builder.click('cancelQueryReview');
 builder.api.loadDashboard(authored, true);
 builder.document.querySelector('.widget-edit').dispatchEvent(new builder.window.Event('click'));

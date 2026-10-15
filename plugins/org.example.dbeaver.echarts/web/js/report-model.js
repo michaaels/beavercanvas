@@ -87,6 +87,7 @@
       const chart = config.chart || {};
       normalized.config.chart = { chartType: text(chart.chartType) || 'line', xColumn: text(chart.xColumn) || null,
         yColumns: (Array.isArray(chart.yColumns) ? chart.yColumns : []).slice(0, 12).map(name => text(name)),
+        ...(chart.map ? { map: window.DBeaverGeoData.normalize(chart.map) } : {}),
         yAxes: Object.fromEntries(Object.entries(chart.yAxes || {}).filter(([name, side]) => name.length <= 200 && ['left', 'right'].includes(side))),
         marks: { markLine: chart.marks?.markLine === true, markArea: chart.marks?.markArea === true, visualMap: chart.marks?.visualMap === true },
         colors: (Array.isArray(chart.colors) ? chart.colors : []).filter(value => /^#[\da-f]{6}$/i.test(value)).slice(0, 12), legend: chart.legend !== false };

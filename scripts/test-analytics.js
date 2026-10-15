@@ -6,6 +6,7 @@ const vm = require('node:vm');
 
 const context = { window: {} };
 vm.createContext(context);
+vm.runInContext(fs.readFileSync('plugins/org.example.dbeaver.echarts/web/js/geo-data.js', 'utf8'), context);
 vm.runInContext(
   fs.readFileSync('plugins/org.example.dbeaver.echarts/web/js/analytics.js', 'utf8'),
   context

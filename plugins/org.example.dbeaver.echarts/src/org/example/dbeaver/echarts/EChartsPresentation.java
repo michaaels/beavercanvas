@@ -791,7 +791,7 @@ public final class EChartsPresentation extends AbstractPresentation {
         });
         reportFunction("dbeaverReportExportAssets", arguments -> {
             Map<String, String> assets = new LinkedHashMap<>();
-            for (var entry : Map.of("echarts", "web/js/echarts.min.js", "worldMap", "web/js/world-map.js", "analytics", "web/js/analytics.js",
+            for (var entry : Map.of("echarts", "web/js/echarts.min.js", "worldMap", "web/js/world-map.js", "analytics", "web/js/analytics.js", "geoData", "web/js/geo-data.js",
                     "widgets", "web/js/report-widgets.js", "paperCss", "web/css/report-paper.css").entrySet()) {
                 assets.put(entry.getKey(), assetText(entry.getValue()));
             }

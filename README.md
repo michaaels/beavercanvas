@@ -51,11 +51,21 @@ JSON versionado y archivo `.sql` en `Dashboards/ECharts`.
 
 ![Dashboard con barras, líneas y mapa geográfico](docs/screenshots/dashboard.png)
 
+Los mapas permiten elegir **latitud y longitud**, **coordenadas en una columna** o
+un **punto GeoJSON/WKT**, y añadir nombre, medida y campos de tooltip. La previa
+indica las filas con coordenadas inválidas. Consulta los
+[formatos y ejemplos SQL](docs/MAP-CHARTS.md).
+
+![Editor de mapas con ubicación y datos del punto](docs/screenshots/map-widget-editor.png)
+
 ### SQL independiente por gráfico
 
 **Add widget** y **Edit** permiten elegir conexión, editar SQL y ejecutar **Run preview**.
 Selecciona columnas, series y ejes antes de aplicar el gráfico. Cada widget tiene su
 propia consulta y política de refresco; **Review SQL** revisa las consultas guardadas.
+
+La pestaña **2. Data** conserva el resultado y SQL anteriores mientras editas otra
+consulta. Ejecuta una nueva previa para aplicar el cambio.
 
 ![Editor de widget con consulta SQL, selección de series y vista previa](docs/screenshots/widget-sql.png)
 

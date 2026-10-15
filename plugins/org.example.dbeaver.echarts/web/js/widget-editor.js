@@ -12,7 +12,7 @@
   function init() {
     if (elements) return;
     elements = Object.fromEntries(['Heading', 'Name', 'Connection', 'Sql', 'Run', 'Stop', 'Status', 'Error',
-      'Type', 'Category', 'Refresh', 'Series', 'Mean', 'Range', 'Scale', 'Preview', 'Data', 'DataHint', 'ChooseChart', 'Save', 'Cancel']
+      'Type', 'Category', 'Refresh', 'Series', 'Mean', 'Range', 'Scale', 'Preview', 'Data', 'DataHint', 'DataSql', 'ChooseChart', 'Map', 'Save', 'Cancel']
       .map(name => [name, document.getElementById(`widgetEditor${name}`)]));
     elements.dialog = document.getElementById('widgetEditor');
     const tabs = [...elements.dialog.querySelectorAll('[data-editor-step]')];
@@ -70,7 +70,7 @@
     draft.source.kind = 'savedQuery';
     draft.chart.marks ||= {};
     if (draft.refreshPolicy.mode !== 'interval') draft.refreshPolicy = { mode: 'manual', intervalSeconds: 0 };
-    session = { draft, data: snapshot || null, dataBinding: snapshot ? signature(draft.source) : null,
+    session = { draft, data: snapshot || null, dataBinding: snapshot ? signature(draft.source) : null, dataSql: snapshot ? draft.source.sql : '',
       previewApproved: false, previewId: null, loading: false, step: 'query', theme, renderer, hooks };
     elements.Heading.textContent = `${isNew ? 'Add' : 'Edit'} ${componentName}`;
     elements.Save.textContent = `Apply ${componentName}`;
@@ -134,8 +134,7 @@
     } else if (elements.Connection.value === '') {
       Object.assign(session.draft.source, { project: null, connectionId: null, connection: null });
     }
-    session.data = null;
-    session.dataBinding = null;
+    // Keep the previous result available in Data while the new SQL is edited or running.
     session.previewApproved = false;
     showError(null);
     setStatus('Source changed. Run preview to verify the returned columns.');
@@ -158,8 +157,7 @@
     if (!session || !session.draft.source.sql.trim()) { showError('Enter SQL for this chart.'); return; }
     if (elements.Connection.value === '') { showError('Choose a connection for this chart.'); return; }
     cancelPreview();
-    session.data = null;
-    session.dataBinding = null;
+    // Keep the previous result available in Data while the new SQL is edited or running.
     session.previewApproved = false;
     session.previewId = `widget-preview-${Date.now().toString(36)}-${++sequence}`;
     session.loading = true;
@@ -183,6 +181,7 @@
     session.loading = false;
     session.data = snapshot;
     session.dataBinding = signature(session.draft.source);
+    session.dataSql = session.draft.source.sql;
     session.previewApproved = true;
     elements.Run.disabled = false;
     elements.Stop.disabled = true;
@@ -216,6 +215,12 @@
 
   function renderFields() {
     const config = session.draft.chart;
+    const isMap = config.chartType === 'map';
+    elements.Map.hidden = !isMap;
+    elements.Category.closest('label').hidden = isMap;
+    elements.Series.closest('fieldset').hidden = isMap;
+    elements.dialog.querySelector('.widget-editor-marks').hidden = isMap;
+    elements.dialog.querySelector('.widget-editor-advanced summary').textContent = isMap ? 'Refresh' : 'Analysis and refresh';
     const isGauge = config.chartType === 'gauge';
     const definition = window.DBeaverEChartsAnalytics.CHART_TYPES.find(type => type.id === config.chartType);
     elements.Hint.textContent = definition?.hint || '';
@@ -223,6 +228,10 @@
       ...(config.xColumn ? [{ name: config.xColumn, kind: 'STRING' }] : []),
       ...config.yColumns.map(name => ({ name, kind: 'NUMERIC' }))
     ];
+    if (isMap) {
+      window.DBeaverMapFields.render(elements.Map, config, columns, session.data?.rows, renderPreview);
+      updateSave(); return;
+    }
     if (session.data) {
       if (!columns.some(column => column.name === config.xColumn)) {
         config.xColumn = columns.find(column => column.kind === 'DATETIME')?.name
@@ -273,8 +282,10 @@
 
   function validDraft() {
     return Boolean(session && !session.loading && session.draft.title.trim() && session.draft.source.sql.trim()
-      && elements.Connection.value !== '' && session.draft.chart.xColumn && session.draft.chart.yColumns.length
-      && (session.draft.chart.chartType !== 'map' || session.draft.chart.yColumns.length >= 2));
+      && elements.Connection.value !== '' && (!session.data || session.dataBinding === signature(session.draft.source))
+      && (session.draft.chart.chartType === 'map'
+        ? !window.DBeaverGeoData.mappingError(session.draft.chart.map, session.data?.columns || [])
+        : session.draft.chart.xColumn && session.draft.chart.yColumns.length));
   }
   function updateSave() { elements.Save.disabled = !validDraft() || session.chartError === true; }
   function setStatus(message) { elements.Status.textContent = message; }
@@ -282,7 +293,12 @@
 
   function renderData() {
     elements.Data.replaceChildren();
-    elements.DataHint.textContent = session.data
+    elements.DataSql.textContent = session.dataSql;
+    elements.DataSql.closest('details').hidden = !session.data;
+    const previous = session.data && session.dataBinding !== signature(session.draft.source);
+    elements.DataHint.textContent = previous
+      ? 'Previous query result retained for reference. Run preview in Query to use the new SQL; Apply is disabled until it succeeds.'
+      : session.data
       ? 'Sample: up to 10 rows and 8 columns. Choose a chart to map these columns.'
       : 'Run preview in Query to load columns and sample rows.';
     if (!session.data) return;
@@ -311,6 +327,8 @@
     if (!session.data?.rows.length || !validDraft()) {
       elements.Preview.textContent = session.loading ? 'Loading preview...'
         : session.data?.rows.length === 0 ? 'The query returned no rows.'
+        : session.data && session.dataBinding !== signature(session.draft.source) ? 'Previous query result retained in Data. Run preview to validate the new SQL.'
+        : session.draft.chart.chartType === 'map' ? 'Choose the location fields for this map.'
         : session.data ? 'Choose a category and numeric series. Adjust the SQL if it has no numeric columns.'
         : 'Run preview to load data for this chart.';
       return;
@@ -322,7 +340,7 @@
     try {
       const option = window.DBeaverEChartsAnalytics.buildOption({ rows: session.data.rows, columns, rowCount: session.data.rows.length,
         xIndex, yIndices, yAxes: Object.fromEntries(yIndices.map(index => [index, config.yAxes[columns[index].name] || 'left'])),
-        chartType: config.chartType, marks: config.marks, theme: session.theme });
+        chartType: config.chartType, map: config.map, marks: config.marks, theme: session.theme });
       if (session.step !== 'chart') return;
       chart = window.echarts.init(elements.Preview, null, { renderer: session.renderer });
       chart.setOption(option, { notMerge: true, lazyUpdate: false });

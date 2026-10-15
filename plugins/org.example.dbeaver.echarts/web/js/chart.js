@@ -17,6 +17,7 @@
     chart: null,
     renderer: 'canvas',
     chartType: 'line',
+    map: null,
     xIndex: -1,
     yIndex: -1,
     yIndices: [],
@@ -256,6 +257,7 @@
       els.renderer.value = state.renderer;
       if (rendererChanged) recreateChart();
     }
+    state.map = configuration.map ? window.DBeaverGeoData.normalize(configuration.map) : null;
     state.configurationLoaded = true;
     state.preferredXName = typeof configuration.xColumn === 'string' ? configuration.xColumn : null;
     state.preferredYNames = Array.isArray(configuration.yColumns)
@@ -303,6 +305,7 @@
     resetDashboardQueries();
     state.configurationLoaded = false;
     state.chartType = 'line';
+    state.map = null;
     state.renderer = 'canvas';
     state.preferredXName = null;
     state.preferredYNames = [];
@@ -468,6 +471,17 @@
   function render() {
     const dashboardMode = state.viewMode === 'dashboard';
     document.body.classList.toggle('dashboard-mode', dashboardMode);
+    const mapMode = !dashboardMode && state.chartType === 'map';
+    document.body.classList.toggle('map-mode', mapMode);
+    $('resultMapFields').hidden = !mapMode;
+    for (const control of [els.xField.closest('label'), els.yField.closest('label'), $('seriesPicker'), els.markLine.closest('details')]) control.hidden = mapMode;
+    if (mapMode) {
+      const config = { ...currentChartConfiguration(), map: state.map };
+      window.DBeaverMapFields.render($('resultMapFields'), config, state.snapshot?.columns || [], state.snapshot?.rows, () => {
+        state.map = config.map; renderChart(); schedulePersistConfiguration();
+      });
+      state.map = config.map;
+    }
     els.chartView.hidden = dashboardMode;
     els.dashboardView.hidden = !dashboardMode;
     els.dashboardActions.hidden = !dashboardMode;
@@ -485,7 +499,7 @@
       showEmpty('The result set has no rows or visible columns to chart.');
       return;
     }
-    if (state.xIndex < 0 || !state.yIndices.length) {
+    if (state.chartType !== 'map' && (state.xIndex < 0 || !state.yIndices.length)) {
       showEmpty('Select one category column and at least one numeric series.');
       return;
     }
@@ -503,6 +517,7 @@
         yIndices: state.yIndices,
         yAxes: state.yAxes,
         chartType: state.chartType,
+        map: state.map,
         marks: state.marks,
         theme: state.theme
       });
@@ -619,6 +634,7 @@
   function currentChartConfiguration() {
     return {
       chartType: state.chartType,
+      ...(state.map ? { map: state.map } : {}),
       xColumn: selectedColumnName(state.xIndex) || state.preferredXName,
       yColumn: selectedColumnName(state.yIndex),
       yColumns: selectedYNames(),

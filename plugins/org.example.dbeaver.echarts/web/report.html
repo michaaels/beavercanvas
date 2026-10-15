@@ -105,10 +105,12 @@
     <section id="widgetEditorDataPanel" role="tabpanel" aria-labelledby="widgetEditorDataTab" hidden>
       <h3>Returned data</h3><p id="widgetEditorDataHint" class="widget-editor-help">Run preview in Query to load columns and sample rows.</p>
       <div class="widget-editor-data"><table id="widgetEditorData" aria-label="Preview result rows"></table></div>
+      <details class="widget-editor-data-query"><summary>SQL used for the displayed data</summary><pre id="widgetEditorDataSql"></pre></details>
       <button id="widgetEditorChooseChart" type="button" class="primary-action">Choose a chart</button>
     </section>
     <section id="widgetEditorChartPanel" role="tabpanel" aria-labelledby="widgetEditorChartTab" hidden>
       <div class="widget-editor-fields"><label>Chart<select id="widgetEditorType"></select></label><label>X / category<select id="widgetEditorCategory"></select></label></div>
+      <div id="widgetEditorMap" hidden></div>
       <fieldset class="widget-editor-series"><legend>Values and axes</legend><div id="widgetEditorSeries"></div></fieldset>
       <details class="widget-editor-advanced"><summary>Analysis and refresh</summary>
         <div class="widget-editor-marks"><label><input id="widgetEditorMean" type="checkbox"> Mean line</label><label><input id="widgetEditorRange" type="checkbox"> Min/max area</label><label><input id="widgetEditorScale" type="checkbox"> Visual scale</label></div>
@@ -118,6 +120,6 @@
     </section>
     <div class="widget-editor-actions"><button id="widgetEditorSave" type="button" class="primary-action">Apply widget</button><button id="widgetEditorCancel" type="button">Cancel</button></div>
   </dialog>
-  <script src="js/echarts.min.js"></script><script src="js/world-map.js"></script><script src="js/analytics.js"></script><script src="js/dashboard-layout.js"></script>
+  <script src="js/echarts.min.js"></script><script src="js/world-map.js"></script><script src="js/geo-data.js"></script><script src="js/analytics.js"></script><script src="js/map-fields.js"></script><script src="js/dashboard-layout.js"></script>
   <script src="js/widget-editor.js"></script><script src="js/report-model.js"></script><script src="js/report-widgets.js"></script><script src="js/report-execution.js"></script><script src="js/report-export.js"></script><script src="js/report-properties.js"></script><script src="js/report-designer.js"></script>
 </body></html>

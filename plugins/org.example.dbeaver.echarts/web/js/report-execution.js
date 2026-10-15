@@ -102,7 +102,11 @@
         const has = name => snapshot.columns.some(column => column.name === name);
         if (widget.type === 'chart') {
           const chart = widget.config.chart;
-          if (!has(chart.xColumn) || !chart.yColumns.length || chart.yColumns.some(name => !snapshot.columns.some(column => column.name === name && column.kind === 'NUMERIC'))) {
+          if (chart.chartType === 'map') {
+            const map = window.DBeaverGeoData.infer(chart, snapshot.columns);
+            const result = window.DBeaverGeoData.data(map, snapshot.columns, snapshot.rows);
+            if (snapshot.rows.length && !result.points.length) fail('No valid map points. Review the coordinate fields and format.');
+          } else if (!has(chart.xColumn) || !chart.yColumns.length || chart.yColumns.some(name => !snapshot.columns.some(column => column.name === name && column.kind === 'NUMERIC'))) {
             fail('Configure the category and numeric series in Chart properties.');
           }
         }

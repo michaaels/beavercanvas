@@ -21,10 +21,20 @@ public final class ReportFilesTest {
             report.getAsJsonArray("sources").add(source);
             JsonObject chart = JsonParser.parseString("{\"id\":\"sales\",\"type\":\"chart\",\"title\":\"Ventas\",\"sourceId\":\"daily\",\"config\":{\"chart\":{\"chartType\":\"bar\",\"xColumn\":\"zona\",\"yColumns\":[\"ventas\"],\"yAxes\":{\"ventas\":\"right\",\"password\":\"secret\"},\"marks\":{\"markLine\":true,\"password\":\"secret\"}}}}").getAsJsonObject();
             report.getAsJsonArray("widgets").add(chart);
+            JsonObject map = JsonParser.parseString("""
+                {"mode":"geo","longitude":"","latitude":"","location":"geo","order":"lonLat",
+                 "label":"zona","value":"ventas","details":["region","costos"],"password":"secret"}
+                """).getAsJsonObject();
+            chart.getAsJsonObject("config").getAsJsonObject("chart").add("map", map);
             Path file = folder.resolve("red.echarts-report.json");
             ReportFiles.write(file, report.toString());
             String saved = ReportFiles.read(file), sql = Files.readString(DocumentFiles.sqlPath(file));
             check(!saved.contains("secret") && !saved.contains("rows"), "Runtime/credentials escaped the template boundary");
+            JsonObject savedMap = JsonParser.parseString(saved).getAsJsonObject().getAsJsonArray("widgets").get(0).getAsJsonObject()
+                .getAsJsonObject("config").getAsJsonObject("chart").getAsJsonObject("map");
+            check(savedMap.get("location").getAsString().equals("geo") && savedMap.getAsJsonArray("details").size() == 2, "Map fields lost on native save/reopen");
+            map.addProperty("mode", "projected"); fail(() -> ReportFiles.parse(report.toString())); map.addProperty("mode", "geo");
+            map.addProperty("location", "x".repeat(201)); fail(() -> ReportFiles.parse(report.toString())); map.addProperty("location", "geo");
             check(sql.contains("SELECT 'niño' AS zona, :date AS fecha;"), "Exact Unicode SQL lost");
             check(!sql.contains(";\n;"), "Duplicate SQL terminator");
             check(sql.startsWith("-- ECharts report: Conexión y región Resumen"), "Multiline title escaped SQL comment");
