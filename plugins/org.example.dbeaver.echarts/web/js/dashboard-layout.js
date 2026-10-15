@@ -65,6 +65,44 @@
     placeWidgets(widgets, id, bounds);
   }
 
+  // Crossing a row changes reading order. Reflow rows from a stable baseline;
+  // a move within the same row or into empty space keeps free placement.
+  function moveInFlow(widgets, id, proposed, bounds) {
+    const moving = widgets.find(widget => widget.id === id);
+    if (!moving) return;
+    const initial = moving.layout, target = normalizeLayout(proposed, bounds);
+    const siblings = widgets.filter(widget => widget !== moving && (widget.parentId || null) === (moving.parentId || null));
+    const crossed = siblings.some(widget => {
+      const center = widget.layout.y + widget.layout.height / 2;
+      return target.y > initial.y ? center > initial.y && center <= target.y + target.height / 2
+        : target.y < initial.y && center < initial.y + initial.height && center >= target.y + target.height / 2;
+    });
+    const group = [moving, ...siblings];
+    if (!crossed) { changeLayout(group, id, target, bounds); return; }
+    const rows = new Map();
+    for (const widget of siblings) {
+      if (!rows.has(widget.layout.y)) rows.set(widget.layout.y, []);
+      rows.get(widget.layout.y).push(widget);
+    }
+    const ordered = [...rows].sort(([a], [b]) => a - b);
+    const center = target.y + target.height / 2;
+    let index = ordered.findIndex(([y, row]) => {
+      const middle = y + Math.max(...row.map(widget => widget.layout.height)) / 2;
+      return target.y < initial.y ? center <= middle : center < middle;
+    });
+    if (index < 0) index = ordered.length;
+    moving.layout = target;
+    ordered.splice(index, 0, [target.y, [moving]]);
+    let y = Math.min(initial.y, ...siblings.map(widget => widget.layout.y));
+    for (const [, row] of ordered) {
+      const height = Math.max(...row.map(widget => widget.layout.height));
+      if (y + height > MAX_ROWS) throw new Error('There is no space to reorder this row.');
+      for (const widget of row) widget.layout = { ...widget.layout, y };
+      y += height;
+    }
+    placeWidgets(group, undefined, bounds);
+  }
+
   function resizeLayout(initial, edge, dx, dy, bounds = {}) {
     const minWidth = bounds.minWidth ?? MIN_WIDTH, minHeight = bounds.minHeight ?? MIN_HEIGHT, maxHeight = bounds.maxHeight ?? MAX_HEIGHT;
     const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -79,6 +117,6 @@
 
   window.DBeaverDashboardLayout = Object.freeze({
     COLUMNS, ROW_HEIGHT, GAP, MAX_ROWS, MIN_WIDTH, MIN_HEIGHT, MAX_HEIGHT,
-    normalizeLayout, overlaps, placeWidgets, changeLayout, resizeLayout
+    normalizeLayout, overlaps, placeWidgets, changeLayout, moveInFlow, resizeLayout
   });
 })();

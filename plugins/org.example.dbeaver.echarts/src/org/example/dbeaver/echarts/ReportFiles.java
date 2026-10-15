@@ -79,7 +79,7 @@ final class ReportFiles {
         Set<String> widgetIds = new HashSet<>();
         for (var element : widgets) {
             JsonObject inputWidget = element.getAsJsonObject();
-            JsonObject widget = fields(inputWidget, "id", "type", "title", "parentId", "sourceId");
+            JsonObject widget = fields(inputWidget, "id", "type", "title", "titleMode", "parentId", "sourceId");
             String id = JsonFields.string(widget, "id"), type = JsonFields.string(widget, "type"), sourceId = JsonFields.string(widget, "sourceId");
             if (id.isBlank() || id.length() > 200 || !widgetIds.add(id) || !TYPES.contains(type) || (!sourceId.isBlank() && !sourceIds.contains(sourceId))) {
                 throw new IllegalArgumentException("Invalid component or missing report source.");
@@ -113,7 +113,24 @@ final class ReportFiles {
                 && Set.of("left", "right").contains(axis.getValue().getAsString())) axes.add(axis.getKey(), axis.getValue().deepCopy());
         }
         chart.add("yAxes", axes);
+        if (input.has("map")) {
+            if (!input.get("map").isJsonObject()) throw new IllegalArgumentException("Invalid map configuration.");
+            chart.add("map", normalizeMap(input.getAsJsonObject("map")));
+        }
         return chart;
+    }
+
+    private static JsonObject normalizeMap(JsonObject input) {
+        JsonObject map = fields(input, "mode", "longitude", "latitude", "location", "order", "label", "value", "details");
+        for (var entry : map.entrySet()) {
+            if (entry.getKey().equals("details")) {
+                if (!entry.getValue().isJsonArray()) throw new IllegalArgumentException("Invalid map tooltip fields.");
+            } else if (!entry.getValue().isJsonPrimitive() || !entry.getValue().getAsJsonPrimitive().isString()
+                || entry.getValue().getAsString().length() > 200) throw new IllegalArgumentException("Invalid map field: " + entry.getKey());
+        }
+        if (map.has("mode") && !Set.of("latLon", "coordinates", "geo").contains(map.get("mode").getAsString())) throw new IllegalArgumentException("Invalid map location format.");
+        if (map.has("order") && !Set.of("lonLat", "latLon").contains(map.get("order").getAsString())) throw new IllegalArgumentException("Invalid coordinate order.");
+        return map;
     }
 
     private static JsonArray normalizeColumns(JsonObject input) {
@@ -154,7 +171,7 @@ final class ReportFiles {
             var value = input.get(name);
             if (value.isJsonObject()) throw new IllegalArgumentException("Invalid nested report field: " + name);
             if (value.isJsonArray()) {
-                if (!Set.of("yColumns", "colors").contains(name) || value.getAsJsonArray().size() > 12) throw new IllegalArgumentException("Invalid report list: " + name);
+                if (!Set.of("yColumns", "colors", "details").contains(name) || value.getAsJsonArray().size() > 12) throw new IllegalArgumentException("Invalid report list: " + name);
                 for (var item : value.getAsJsonArray()) if (!item.isJsonPrimitive() || !item.getAsJsonPrimitive().isString() || item.getAsString().length() > 200) throw new IllegalArgumentException("Invalid report list value.");
             }
             clean.add(name, value.deepCopy());
@@ -177,7 +194,7 @@ final class ReportFiles {
             JsonObject old = element.getAsJsonObject(), query = old.getAsJsonObject("source").deepCopy();
             String sourceId = "query-" + ++index;
             query.addProperty("id", sourceId); report.getAsJsonArray("sources").add(query);
-            JsonObject component = fields(old, "id", "title");
+            JsonObject component = fields(old, "id", "title", "titleMode");
             component.add("layout", fields(object(old, "layout"), "x", "y", "width", "height"));
             component.addProperty("type", "chart"); component.addProperty("sourceId", sourceId);
             JsonObject config = new JsonObject(); config.add("chart", old.getAsJsonObject("chart").deepCopy());

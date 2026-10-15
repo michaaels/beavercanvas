@@ -12,10 +12,10 @@ pero **no para instalar y utilizar el plugin**.
 
 ## Descargar e instalar
 
-Descarga el instalador y su checksum en el [release **0.6.1-beta.1**](https://github.com/michaaels/beavercanvas/releases/tag/v0.6.1-beta.1).
+Descarga el instalador y su checksum en el [release **0.6.6-beta.1**](https://github.com/michaaels/beavercanvas/releases/tag/v0.6.6-beta.1).
 Todos los instaladores están en [GitHub Releases](https://github.com/michaaels/beavercanvas/releases).
 La beta histórica [0.6.0](https://github.com/michaaels/beavercanvas/releases/tag/v0.6.0-beta.1)
-todavía utiliza el nombre anterior. Los pasos siguientes corresponden a BeaverCanvas 0.6.1.
+todavía utiliza el nombre anterior. Los pasos siguientes corresponden a BeaverCanvas 0.6.6.
 
 1. En DBeaver, abre **Help / Ayuda → Install New Software → Add → Archive**.
 2. Selecciona `beavercanvas-<version>.zip` sin descomprimirlo.
@@ -31,6 +31,9 @@ Target probado: **DBeaver Community 26.2.2, Windows y Linux x86_64**.
 Es una **beta sin firma**, con certificación de drivers, clientes de correo y macOS pendiente.
 Consulta la [guía de instalación](docs/P2-UPDATE-SITE.md), la
 [matriz de compatibilidad](docs/COMPATIBILITY.md) y los [pendientes de producción](docs/PRODUCTION-READINESS.md).
+
+La [interfaz de la próxima versión](docs/UX-IMPROVEMENTS.md) incorpora acciones
+agrupadas y configuración de gráficos por etapas; incluye capturas del desarrollo.
 
 ## Funcionalidades en imágenes
 
@@ -48,15 +51,33 @@ JSON versionado y archivo `.sql` en `Dashboards/ECharts`.
 
 ![Dashboard con barras, líneas y mapa geográfico](docs/screenshots/dashboard.png)
 
+Los mapas permiten elegir **latitud y longitud**, **coordenadas en una columna** o
+un **punto GeoJSON/WKT**, y añadir nombre, medida y campos de tooltip. La previa
+indica las filas con coordenadas inválidas. Consulta los
+[formatos y ejemplos SQL](docs/MAP-CHARTS.md).
+
+![Editor de mapas con ubicación y datos del punto](docs/screenshots/map-widget-editor.png)
+
 ### SQL independiente por gráfico
 
 **Add widget** y **Edit** permiten elegir conexión, editar SQL y ejecutar **Run preview**.
 Selecciona columnas, series y ejes antes de aplicar el gráfico. Cada widget tiene su
 propia consulta y política de refresco; **Review SQL** revisa las consultas guardadas.
 
+La pestaña **2. Data** conserva el resultado y SQL anteriores mientras editas otra
+consulta. Ejecuta una nueva previa para aplicar el cambio.
+
 ![Editor de widget con consulta SQL, selección de series y vista previa](docs/screenshots/widget-sql.png)
 
 ### Diseñador de reportes
+
+El botón **Report Designer** lleva los gráficos del dashboard con los datos ya
+visualizados, sin volver a ejecutar SQL. **Ctrl+Z**, **Ctrl+Y** y **Ctrl+Shift+Z**
+permiten deshacer/rehacer; los tamaños y márgenes se actualizan en vivo. Al
+reordenar filas de gráficos, la previa muestra cómo se recupera el espacio.
+[Atajos, títulos automáticos y edición en vivo](docs/EDITING-WORKFLOW.md).
+
+![Gráficos transferidos al diseñador con datos y propiedades en vivo](docs/screenshots/designer-workflow.png)
 
 Diseña una hoja con títulos, textos, imágenes, secciones, gráficos, KPIs y tablas SQL.
 Configura propiedades, fuentes de datos y parámetros; guarda plantillas reutilizables

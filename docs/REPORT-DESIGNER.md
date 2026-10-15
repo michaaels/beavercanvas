@@ -52,6 +52,28 @@ representation because Outlook cannot run ECharts or modern grid layouts.
 
 ## Data and email boundary
 
+New tables use **Rows shown → Fit rows to table height**. Stretching their border
+recalculates the rows per page without running SQL. **Fixed maximum per page**
+retains an explicit cap. Existing templates keep their saved cap; choose Fit rows
+to table height to enable automatic sizing. In the existing JSON format,
+`config.pageSize: 0` selects automatic sizing; positive values keep fixed caps.
+
+The designer records the effective row capacity and selected page for export.
+Preview, interactive HTML, static HTML and EML use that same page, including
+formats and totals. Interactive HTML retains pagination for the remaining rows.
+Static HTML and email retain the selected page; they do not expand the full query.
+
+Recipients are optional when saving an EML draft. Nonempty addresses still require
+valid syntax. Native export dialogs and file writes run after the BrowserFunction
+returns, and acknowledge completion to the frontend. Cancellation and errors
+restore the composition form, preserving its fields.
+
+`test-report-table-export.js` covers resize, zoom, all 90 fixture rows through
+pagination, identical exported pages, blank-recipient drafts and asynchronous
+save/cancel/error responses. The native SWT regression generates and writes an
+EML through the production writer and receives its acknowledgement; it substitutes
+a controlled path for the operating-system file chooser and sends no email.
+
 Templates store connection references, SQL, parameter definitions and layout.
 They do not store JDBC URLs, passwords, authorization flags or execution results.
 Generation produces a snapshot with runtime parameter values and query results.

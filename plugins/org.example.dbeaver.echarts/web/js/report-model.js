@@ -24,14 +24,14 @@
     if (!TYPES.includes(type)) throw new Error('Unsupported report component.');
     const titles = { heading: 'Report title', text: 'Paragraph', image: 'Logo', kpi: 'Indicator', chart: 'Chart', table: 'Data table',
       line: 'Separator', rectangle: 'Rectangle', section: 'Section', header: 'Header', footer: 'Footer', date: 'Generated date' };
-    return { id: id('component'), type, title: titles[type], parentId: null, sourceId: '',
+    return { id: id('component'), type, title: titles[type], titleMode: type === 'chart' ? 'auto' : 'custom', parentId: null, sourceId: '',
       layout: { x: 0, y: 0, width: ['heading', 'text', 'line', 'section', 'header', 'footer'].includes(type) ? 12 : 6,
         height: type === 'chart' || type === 'table' ? 8 : type === 'section' ? 12 : type === 'line' || type === 'date' ? 1 : type === 'heading' || type === 'header' || type === 'footer' ? 2 : 3 },
       style: { color: '#243447', background: 'transparent', borderColor: '#d5dce3', borderWidth: 0, padding: ['line', 'date'].includes(type) ? 0 : 12,
         fontSize: type === 'heading' ? 28 : 14, fontFamily: 'Segoe UI', align: 'left' },
       config: { text: type === 'heading' ? 'Report title' : type === 'text' ? 'Write the report narrative here.' : '',
         image: '', alt: '', column: '', aggregate: 'sum', numberFormat: 'number', decimals: 2, prefix: '', suffix: '',
-        columns: [], totals: false, groupBy: '', pageSize: 20, sortColumn: '', sortDirection: 'asc',
+        columns: [], totals: false, groupBy: '', pageSize: 0, sortColumn: '', sortDirection: 'asc',
         chart: { chartType: 'line', xColumn: null, yColumns: [], yAxes: {}, marks: {}, colors: [], legend: true },
         visibility: { enabled: false, column: '', operator: 'notEmpty', value: '' } } };
   }
@@ -68,7 +68,7 @@
       widgetIds.add(item.id);
       const normalized = widget(item.type), config = item.config || {}, style = item.style || {};
       Object.assign(normalized, { id: item.id, title: text(item.title) || normalized.title, parentId: text(item.parentId) || null,
-        sourceId: text(item.sourceId), layout: layout.normalizeLayout(item.layout, BOUNDS) });
+        titleMode: item.titleMode === 'auto' ? 'auto' : 'custom', sourceId: text(item.sourceId), layout: layout.normalizeLayout(item.layout, BOUNDS) });
       normalized.style = { color: color(style.color, '#243447'), background: color(style.background, 'transparent'), borderColor: color(style.borderColor, '#d5dce3'),
         borderWidth: number(style.borderWidth, 0, 8, 0), padding: number(style.padding, 0, 64, normalized.style.padding), fontSize: number(style.fontSize, 10, 72, normalized.style.fontSize),
         fontFamily: ['Segoe UI', 'Arial', 'Georgia', 'Consolas'].includes(style.fontFamily) ? style.fontFamily : 'Segoe UI',
@@ -77,7 +77,7 @@
         column: text(config.column), aggregate: ['sum', 'average', 'count', 'first', 'min', 'max'].includes(config.aggregate) ? config.aggregate : 'sum',
         numberFormat: ['number', 'currency', 'percent', 'date', 'text'].includes(config.numberFormat) ? config.numberFormat : 'number',
         decimals: number(config.decimals, 0, 8, 2), prefix: text(config.prefix, 40), suffix: text(config.suffix, 40),
-        totals: config.totals === true, groupBy: text(config.groupBy), pageSize: Math.round(number(config.pageSize, 5, 200, 20)),
+        totals: config.totals === true, groupBy: text(config.groupBy), pageSize: config.pageSize === 0 ? 0 : Math.round(number(config.pageSize, 5, 200, 20)),
         sortColumn: text(config.sortColumn), sortDirection: config.sortDirection === 'desc' ? 'desc' : 'asc' };
       normalized.config.columns = (Array.isArray(config.columns) ? config.columns : []).slice(0, 100).map(column => ({
         name: text(column.name), label: text(column.label) || text(column.name), format: ['number', 'currency', 'percent', 'date', 'text'].includes(column.format) ? column.format : 'text',
@@ -87,6 +87,7 @@
       const chart = config.chart || {};
       normalized.config.chart = { chartType: text(chart.chartType) || 'line', xColumn: text(chart.xColumn) || null,
         yColumns: (Array.isArray(chart.yColumns) ? chart.yColumns : []).slice(0, 12).map(name => text(name)),
+        ...(chart.map ? { map: window.DBeaverGeoData.normalize(chart.map) } : {}),
         yAxes: Object.fromEntries(Object.entries(chart.yAxes || {}).filter(([name, side]) => name.length <= 200 && ['left', 'right'].includes(side))),
         marks: { markLine: chart.marks?.markLine === true, markArea: chart.marks?.markArea === true, visualMap: chart.marks?.visualMap === true },
         colors: (Array.isArray(chart.colors) ? chart.colors : []).filter(value => /^#[\da-f]{6}$/i.test(value)).slice(0, 12), legend: chart.legend !== false };
@@ -138,7 +139,7 @@
     for (const item of dashboard.widgets || []) {
       const query = source({ ...item.source, id: id('source'), name: item.source?.name || item.title });
       const component = widget('chart');
-      Object.assign(component, { title: item.title, sourceId: query.id, layout: layout.normalizeLayout(item.layout) });
+      Object.assign(component, { id: item.id || component.id, title: item.title, titleMode: item.titleMode || 'custom', sourceId: query.id, layout: layout.normalizeLayout(item.layout) });
       component.config.chart = clone(item.chart);
       result.sources.push(query); result.widgets.push(component);
     }
@@ -162,29 +163,9 @@
     return { ...clone(source), parameters };
   }
   function history(document, limit = 80, maxBytes = 24 * 1024 * 1024) {
-    let current = normalize(document), undo = [], redo = [], lastMerge = null;
-    function trim(items) {
-      let bytes = 0;
-      for (let i = items.length - 1; i >= 0; i--) {
-        bytes += JSON.stringify(items[i]).length * 2;
-        if (items.length - i > limit || bytes > maxBytes) return items.slice(i + 1);
-      }
-      return items;
-    }
-    return {
-      get: () => current,
-      replace(value) { current = normalize(value); undo = []; redo = []; lastMerge = null; return current; },
-      change(action, mergeKey) {
-        const before = clone(current), draft = clone(current); action(draft);
-        const after = normalize(draft);
-        if (JSON.stringify(before) !== JSON.stringify(after)) { if (!mergeKey || mergeKey !== lastMerge) undo.push(before); undo = trim(undo); redo = []; current = after; lastMerge = mergeKey || null; }
-        return current;
-      },
-      undo() { lastMerge = null; if (undo.length) { redo.push(current); redo = trim(redo); current = undo.pop(); } return current; },
-      redo() { lastMerge = null; if (redo.length) { undo.push(current); undo = trim(undo); current = redo.pop(); } return current; },
-      canUndo: () => undo.length > 0, canRedo: () => redo.length > 0
-    };
+    return window.DBeaverDocumentHistory.create(document, normalize, limit, maxBytes);
   }
+
   window.DBeaverReportModel = Object.freeze({ FORMAT, TYPES, BOUNDS, create, widget, source, normalize, fromDashboard, clone, id,
     history, place, compact, signature, runtimeSource, image });
 })();

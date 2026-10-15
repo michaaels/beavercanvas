@@ -11,16 +11,29 @@
 
   function init() {
     if (elements) return;
-    elements = Object.fromEntries(['Heading', 'Name', 'Connection', 'Sql', 'Run', 'Stop', 'Status', 'Error',
-      'Type', 'Category', 'Refresh', 'Series', 'Mean', 'Range', 'Scale', 'Preview', 'Data', 'Save', 'Cancel']
+    elements = Object.fromEntries(['Heading', 'Name', 'AutoTitle', 'Connection', 'Sql', 'Run', 'Stop', 'Status', 'Error',
+      'Type', 'Category', 'Refresh', 'Series', 'Mean', 'Range', 'Scale', 'Preview', 'Data', 'DataHint', 'DataSql', 'ChooseChart', 'Map', 'Save', 'Cancel']
       .map(name => [name, document.getElementById(`widgetEditor${name}`)]));
     elements.dialog = document.getElementById('widgetEditor');
+    const tabs = [...elements.dialog.querySelectorAll('[data-editor-step]')];
+    tabs.forEach((tab, index) => {
+      tab.addEventListener('click', () => setStep(tab.dataset.editorStep));
+      tab.addEventListener('keydown', event => {
+        const next = event.key === 'ArrowRight' ? (index + 1) % tabs.length
+          : event.key === 'ArrowLeft' ? (index + tabs.length - 1) % tabs.length
+          : event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : null;
+        if (next === null) return;
+        event.preventDefault(); setStep(tabs[next].dataset.editorStep); tabs[next].focus();
+      });
+    });
+    elements.ChooseChart.addEventListener('click', () => { setStep('chart'); elements.Type.focus(); });
     window.DBeaverEChartsAnalytics.populateTypes(elements.Type);
     const hint = document.createElement('p'); hint.id = 'widgetEditorHint'; hint.className = 'widget-editor-hint';
     hint.setAttribute('role', 'status'); elements.Type.closest('.widget-editor-fields').after(hint);
     elements.Type.setAttribute('aria-describedby', hint.id);
     elements.Hint = hint;
-    elements.Name.addEventListener('input', () => { session.draft.title = elements.Name.value.slice(0, 200); updateSave(); });
+    elements.Name.addEventListener('input', () => { session.draft.title = elements.Name.value.slice(0, 200); session.draft.titleMode = 'custom'; elements.AutoTitle.checked = false; updateSave(); });
+    elements.AutoTitle.addEventListener('change', () => { session.draft.titleMode = elements.AutoTitle.checked ? 'auto' : 'custom'; renderPreview(); });
     elements.Sql.addEventListener('input', sourceChanged);
     elements.Connection.addEventListener('change', sourceChanged);
     elements.Type.addEventListener('change', () => { session.draft.chart.chartType = elements.Type.value; renderFields(); renderPreview(); });
@@ -51,16 +64,19 @@
     });
   }
 
-  function open({ widget, snapshot, isNew, theme, renderer, ...hooks }) {
+  function open({ widget, snapshot, isNew, theme, renderer, componentName = 'widget', ...hooks }) {
     init();
     close();
     const draft = JSON.parse(JSON.stringify(widget));
     draft.source.kind = 'savedQuery';
     draft.chart.marks ||= {};
     if (draft.refreshPolicy.mode !== 'interval') draft.refreshPolicy = { mode: 'manual', intervalSeconds: 0 };
-    session = { draft, data: snapshot || null, dataBinding: snapshot ? signature(draft.source) : null,
-      previewApproved: false, previewId: null, loading: false, theme, renderer, hooks };
-    elements.Heading.textContent = isNew ? 'Add widget' : 'Edit widget';
+    session = { draft, data: snapshot || null, dataBinding: snapshot ? signature(draft.source) : null, dataSql: snapshot ? draft.source.sql : '',
+      previewApproved: false, previewId: null, loading: false, step: 'query', theme, renderer, hooks };
+    elements.Heading.textContent = `${isNew ? 'Add' : 'Edit'} ${componentName}`;
+    elements.Save.textContent = `Apply ${componentName}`;
+    draft.titleMode ||= isNew || ['Chart', (draft.chart.yColumns || []).join(', '), window.DBeaverEChartsAnalytics.chartTitle(draft.chart)].includes(draft.title) ? 'auto' : 'custom';
+    elements.AutoTitle.checked = draft.titleMode === 'auto';
     elements.Name.value = draft.title;
     elements.Sql.value = draft.source.sql;
     if (![...elements.Type.querySelectorAll('option')].some(option => option.value === draft.chart.chartType)) draft.chart.chartType = 'line';
@@ -90,13 +106,25 @@
       elements.Connection.value = 'retained';
     }
     showError(null);
+    elements.dialog.querySelector('.widget-editor-advanced').open = false;
     setStatus(snapshot ? 'Using the current result. Run preview to execute this SQL again.' : 'Run preview to load columns and sample rows.');
     renderFields();
     renderData();
     if (typeof elements.dialog.showModal === 'function') elements.dialog.showModal();
     else elements.dialog.setAttribute('open', '');
+    setStep(snapshot ? 'chart' : 'query');
+    (snapshot ? elements.Type : elements.Sql).focus();
+  }
+
+  function setStep(step) {
+    if (!session) return;
+    session.step = step;
+    elements.dialog.querySelectorAll('[data-editor-step]').forEach(tab => {
+      const active = tab.dataset.editorStep === step;
+      tab.setAttribute('aria-selected', String(active)); tab.tabIndex = active ? 0 : -1;
+      document.getElementById(tab.getAttribute('aria-controls')).hidden = !active;
+    });
     renderPreview();
-    elements.Sql.focus();
   }
 
   function sourceChanged() {
@@ -109,8 +137,7 @@
     } else if (elements.Connection.value === '') {
       Object.assign(session.draft.source, { project: null, connectionId: null, connection: null });
     }
-    session.data = null;
-    session.dataBinding = null;
+    // Keep the previous result available in Data while the new SQL is edited or running.
     session.previewApproved = false;
     showError(null);
     setStatus('Source changed. Run preview to verify the returned columns.');
@@ -125,6 +152,7 @@
     session.previewId = null;
     session.loading = false;
     elements.Stop.disabled = true;
+    elements.Stop.hidden = true;
     elements.Run.disabled = false;
   }
 
@@ -132,13 +160,13 @@
     if (!session || !session.draft.source.sql.trim()) { showError('Enter SQL for this chart.'); return; }
     if (elements.Connection.value === '') { showError('Choose a connection for this chart.'); return; }
     cancelPreview();
-    session.data = null;
-    session.dataBinding = null;
+    // Keep the previous result available in Data while the new SQL is edited or running.
     session.previewApproved = false;
     session.previewId = `widget-preview-${Date.now().toString(36)}-${++sequence}`;
     session.loading = true;
     elements.Run.disabled = true;
     elements.Stop.disabled = false;
+    elements.Stop.hidden = false;
     showError(null);
     setStatus('Running preview...');
     renderData();
@@ -156,15 +184,23 @@
     session.loading = false;
     session.data = snapshot;
     session.dataBinding = signature(session.draft.source);
+    session.dataSql = session.draft.source.sql;
     session.previewApproved = true;
     elements.Run.disabled = false;
     elements.Stop.disabled = true;
+    elements.Stop.hidden = true;
     const count = snapshot.rows.length;
-    setStatus(`${count.toLocaleString()} rows${snapshot.truncated ? ' (partial result)' : ''}. Table shows the first 10 rows and 8 columns.`);
+    setStatus(`${count.toLocaleString()} rows${snapshot.truncated ? ' (partial result)' : ''} loaded. Data is ready for chart setup.`);
     showError(null);
     renderFields();
     renderData();
-    renderPreview();
+    if (session.step === 'query') {
+      const focusInQuery = document.getElementById('widgetEditorQueryPanel').contains(document.activeElement)
+        || document.activeElement === document.getElementById('widgetEditorQueryTab');
+      setStep('data');
+      if (focusInQuery) document.getElementById('widgetEditorDataTab').focus();
+    }
+    else renderPreview();
     return true;
   }
 
@@ -173,6 +209,7 @@
     session.loading = false;
     elements.Run.disabled = false;
     elements.Stop.disabled = true;
+    elements.Stop.hidden = true;
     setStatus('Preview failed. Edit the SQL or connection and try again.');
     showError(message);
     updateSave();
@@ -181,6 +218,12 @@
 
   function renderFields() {
     const config = session.draft.chart;
+    const isMap = config.chartType === 'map';
+    elements.Map.hidden = !isMap;
+    elements.Category.closest('label').hidden = isMap;
+    elements.Series.closest('fieldset').hidden = isMap;
+    elements.dialog.querySelector('.widget-editor-marks').hidden = isMap;
+    elements.dialog.querySelector('.widget-editor-advanced summary').textContent = isMap ? 'Refresh' : 'Analysis and refresh';
     const isGauge = config.chartType === 'gauge';
     const definition = window.DBeaverEChartsAnalytics.CHART_TYPES.find(type => type.id === config.chartType);
     elements.Hint.textContent = definition?.hint || '';
@@ -188,6 +231,10 @@
       ...(config.xColumn ? [{ name: config.xColumn, kind: 'STRING' }] : []),
       ...config.yColumns.map(name => ({ name, kind: 'NUMERIC' }))
     ];
+    if (isMap) {
+      window.DBeaverMapFields.render(elements.Map, config, columns, session.data?.rows, renderPreview);
+      updateSave(); return;
+    }
     if (session.data) {
       if (!columns.some(column => column.name === config.xColumn)) {
         config.xColumn = columns.find(column => column.kind === 'DATETIME')?.name
@@ -238,8 +285,10 @@
 
   function validDraft() {
     return Boolean(session && !session.loading && session.draft.title.trim() && session.draft.source.sql.trim()
-      && elements.Connection.value !== '' && session.draft.chart.xColumn && session.draft.chart.yColumns.length
-      && (session.draft.chart.chartType !== 'map' || session.draft.chart.yColumns.length >= 2));
+      && elements.Connection.value !== '' && (!session.data || session.dataBinding === signature(session.draft.source))
+      && (session.draft.chart.chartType === 'map'
+        ? !window.DBeaverGeoData.mappingError(session.draft.chart.map, session.data?.columns || [])
+        : session.draft.chart.xColumn && session.draft.chart.yColumns.length));
   }
   function updateSave() { elements.Save.disabled = !validDraft() || session.chartError === true; }
   function setStatus(message) { elements.Status.textContent = message; }
@@ -247,6 +296,14 @@
 
   function renderData() {
     elements.Data.replaceChildren();
+    elements.DataSql.textContent = session.dataSql;
+    elements.DataSql.closest('details').hidden = !session.data;
+    const previous = session.data && session.dataBinding !== signature(session.draft.source);
+    elements.DataHint.textContent = previous
+      ? 'Previous query result retained for reference. Run preview in Query to use the new SQL; Apply is disabled until it succeeds.'
+      : session.data
+      ? 'Sample: up to 10 rows and 8 columns. Choose a chart to map these columns.'
+      : 'Run preview in Query to load columns and sample rows.';
     if (!session.data) return;
     const columns = session.data.columns.slice(0, 8);
     const head = document.createElement('tr');
@@ -266,6 +323,7 @@
 
   function disposeChart() { observer?.disconnect(); observer = null; chart?.dispose(); chart = null; }
   function renderPreview() {
+    if (session.draft.titleMode === 'auto') { session.draft.title = window.DBeaverEChartsAnalytics.chartTitle(session.draft.chart); elements.Name.value = session.draft.title; }
     disposeChart();
     elements.Preview.replaceChildren();
     session.chartError = false;
@@ -273,6 +331,8 @@
     if (!session.data?.rows.length || !validDraft()) {
       elements.Preview.textContent = session.loading ? 'Loading preview...'
         : session.data?.rows.length === 0 ? 'The query returned no rows.'
+        : session.data && session.dataBinding !== signature(session.draft.source) ? 'Previous query result retained in Data. Run preview to validate the new SQL.'
+        : session.draft.chart.chartType === 'map' ? 'Choose the location fields for this map.'
         : session.data ? 'Choose a category and numeric series. Adjust the SQL if it has no numeric columns.'
         : 'Run preview to load data for this chart.';
       return;
@@ -284,7 +344,8 @@
     try {
       const option = window.DBeaverEChartsAnalytics.buildOption({ rows: session.data.rows, columns, rowCount: session.data.rows.length,
         xIndex, yIndices, yAxes: Object.fromEntries(yIndices.map(index => [index, config.yAxes[columns[index].name] || 'left'])),
-        chartType: config.chartType, marks: config.marks, theme: session.theme });
+        chartType: config.chartType, map: config.map, marks: config.marks, theme: session.theme });
+      if (session.step !== 'chart') return;
       chart = window.echarts.init(elements.Preview, null, { renderer: session.renderer });
       chart.setOption(option, { notMerge: true, lazyUpdate: false });
       showError(null);

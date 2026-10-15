@@ -7,12 +7,13 @@ const root = path.resolve(__dirname, '..');
 const cliArgs = process.argv.slice(2);
 const pdeOutput = cliArgs.includes('--pde-output');
 const installed = cliArgs.includes('--installed');
+const nativeStartup = cliArgs.includes('--native-startup');
 if (installed && pdeOutput) throw new Error('Choose --installed or --pde-output');
 const home = path.resolve(cliArgs.find(value => !value.startsWith('--')) || path.join(root, '.dev/dbeaver-26.2.2/dbeaver'));
 const executableSuffix = process.platform === 'win32' ? '.exe' : '';
 const compilerHome = process.env.ECHARTS_COMPILER_JDK || process.env.ECHARTS_RUNTIME_JDK || process.env.JAVA_HOME || (process.platform === 'win32' ? 'C:/Program Files/Java/jdk-26.0.1' : null);
 const bundledRuntime = path.join(home, 'jre');
-const javaHome = process.env.ECHARTS_RUNTIME_JDK || (installed && fs.existsSync(path.join(bundledRuntime, 'bin/java' + executableSuffix)) ? bundledRuntime : compilerHome);
+const javaHome = process.env.ECHARTS_RUNTIME_JDK || ((installed || nativeStartup) && fs.existsSync(path.join(bundledRuntime, 'bin/java' + executableSuffix)) ? bundledRuntime : compilerHome);
 const binary = (home, name) => home ? path.join(home, 'bin', name + executableSuffix) : name + executableSuffix;
 const java = name => binary(javaHome, name);
 const compiler = name => binary(compilerHome, name);
@@ -45,6 +46,7 @@ function run(command, args) {
   if (result.stderr) process.stderr.write(result.stderr);
   if (result.error) throw result.error;
   if (result.status) throw new Error(`${path.basename(command)} exited ${result.status}`);
+  return result.stdout || '';
 }
 const source = path.join(root, 'plugins/org.example.dbeaver.echarts');
 const sources = fs.readdirSync(path.join(source, 'src/org/example/dbeaver/echarts'))
@@ -74,16 +76,37 @@ if (pdeOutput) {
 } else if (!installed) {
   run(compiler('javac'), ['--release', '21', '-encoding', 'UTF-8', '-cp', path.join(plugins, '*'), '-d', classes, ...sources]);
 }
-const pluginJar = installed ? installedPlugin : path.join(output, 'echarts-test.jar');
+let pluginJar = installed ? installedPlugin : path.join(output, 'echarts-test.jar');
 if (installed) {
   if (!pluginJar || !fs.existsSync(pluginJar)) throw new Error('P2-installed plugin is missing from bundles.info');
   console.log('Testing P2-installed artifact: ' + pluginJar);
 } else {
   run(compiler('jar'), ['cfm', pluginJar, path.join(source, 'META-INF/MANIFEST.MF'), '-C', classes, '.', '-C', source, 'plugin.xml', '-C', source, 'web']);
+  if (nativeStartup) {
+    // Match P2's unpack=true layout: relative scripts beside report.html must
+    // exist, rather than extracting only that one JAR entry through FileLocator.
+    pluginJar = path.join(output, 'native-plugin');
+    fs.cpSync(classes, pluginJar, { recursive: true });
+    for (const name of ['META-INF', 'plugin.xml', 'web', 'third-party']) {
+      fs.cpSync(path.join(source, name), path.join(pluginJar, name), { recursive: true });
+    }
+  }
 }
 const harness = path.join(output, 'harness');
 fs.mkdirSync(harness);
 run(compiler('javac'), ['--release', '21', '-cp', framework, '-d', harness, 'scripts/tests/PluginRegistryTest.java']);
-run(java('java'), ['--enable-native-access=ALL-UNNAMED', '-Djava.library.path=' + home,
+let nativeBundle;
+if (nativeStartup) {
+  const nativeClasses = path.join(output, 'native-classes'); fs.mkdirSync(nativeClasses);
+  run(compiler('javac'), ['--release', '21', '-cp', path.join(plugins, '*'), '-d', nativeClasses, 'scripts/tests/NativeBrowserStartupTest.java']);
+  const manifest = path.join(output, 'native-manifest.mf');
+  fs.writeFileSync(manifest, 'Manifest-Version: 1.0\nBundle-ManifestVersion: 2\nBundle-SymbolicName: beavercanvas.test.native.startup\nBundle-Version: 1.0.0\nBundle-Activator: NativeBrowserStartupTest\nRequire-Bundle: org.eclipse.swt,org.eclipse.core.runtime\nImport-Package: org.osgi.framework\n\n');
+  nativeBundle = path.join(output, 'native-startup.jar');
+  run(compiler('jar'), ['cfm', nativeBundle, manifest, '-C', nativeClasses, '.']);
+}
+const registryOutput = run(java('java'), ['--enable-native-access=ALL-UNNAMED', '-Djava.library.path=' + home,
   '-cp', harness + path.delimiter + framework, 'PluginRegistryTest', home,
-  path.join(output, 'configuration'), configurator, info, pluginJar, installed ? 'installed' : 'test']);
+  path.join(output, 'configuration'), configurator, info, pluginJar, installed ? 'installed' : 'test', ...(nativeBundle ? [nativeBundle] : [])]);
+if (nativeStartup && (!registryOutput.includes('Native SWT/') || !registryOutput.includes('Equinox registry tests OK'))) {
+  throw new Error('Native SWT startup did not complete, even though the runtime exited without an error code');
+}

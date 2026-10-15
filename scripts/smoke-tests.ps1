@@ -103,7 +103,7 @@ if ($DBeaverPlugins) {
             if ($LASTEXITCODE -ne 0) { throw 'Java sources do not compile against the supplied DBeaver target' }
             Write-Host 'Java source compatibility OK: supplied DBeaver target'
             $TestNames = @('DocumentFilesTest', 'DashboardFilesTest', 'DashboardQueryControlsTest',
-                'ReportFilesTest', 'ReportParametersTest', 'BrowserNavigationTest')
+                'ReportFilesTest', 'ReportParametersTest', 'BrowserNavigationTest', 'EditingWorkflowTest')
             $TestSources = $TestNames | ForEach-Object { Join-Path 'scripts\tests' "$_.java" }
             $Classpath = $CompileDir + ';' + (Join-Path $DBeaverPlugins '*')
             & javac -encoding UTF-8 --release 21 -cp $Classpath -d $CompileDir $TestSources

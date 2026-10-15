@@ -6,8 +6,8 @@
   function interactive(report, snapshots, context, assets) {
     if (!assets?.echarts || !assets?.widgets || !assets?.paperCss) throw new Error('Report export assets are not available.');
     const portable = { title: report.title, page: report.page, widgets: report.widgets };
-    const scripts = [assets.echarts, assets.worldMap, assets.analytics, assets.widgets].filter(Boolean).map(code => `<script>${safeScript(code)}</script>`).join('\n');
-    const runtime = `const report=${safeJson(portable)};const data=${safeJson(snapshots)};const context=${safeJson({ generatedAt: context.generatedAt, parameters: context.parameters, tablePages: context.tablePages })};window.DBeaverReportWidgets.renderReport(document.getElementById('report'),report,data,context);`;
+    const scripts = [assets.echarts, assets.worldMap, assets.geoData, assets.analytics, assets.widgets].filter(Boolean).map(code => `<script>${safeScript(code)}</script>`).join('\n');
+    const runtime = `const report=${safeJson(portable)};const data=${safeJson(snapshots)};const context=${safeJson({ generatedAt: context.generatedAt, parameters: context.parameters, tablePages: context.tablePages, tableViews: context.tableViews, lockTableViews: context.lockTableViews })};window.DBeaverReportWidgets.renderReport(document.getElementById('report'),report,data,context);`;
     return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escape(report.title)}</title><style>body{margin:0;background:#f3f6f9} .report-paper{max-width:100%}${assets.paperCss}</style></head><body><main id="report"></main>${scripts}<script>${runtime}</script><details style="margin:16px;font:12px sans-serif"><summary>Third-party licenses</summary><pre style="white-space:pre-wrap">${escape(assets.licenses || '')}</pre></details></body></html>`;
   }
   function chartImages(charts) {
@@ -86,10 +86,10 @@
     if (chunk) words.push(`=?UTF-8?B?${base64(chunk)}?=`);
     return words.join('\r\n ');
   }
-  function addresses(value, required = false) {
+  function addresses(value) {
     if (/[\r\n]/.test(value)) throw new Error('Recipients cannot contain line breaks.');
     const list = value.split(/[,;]/).map(item => item.trim()).filter(Boolean);
-    if ((required && !list.length) || list.length > 100 || list.some(item => !/^[^\s<>@,;]+@[^\s<>@,;]+\.[^\s<>@,;]+$/.test(item))) throw new Error('Enter email addresses separated by commas.');
+    if (list.length > 100 || list.some(item => !/^[^\s<>@,;]+@[^\s<>@,;]+\.[^\s<>@,;]+$/.test(item))) throw new Error('Enter email addresses separated by commas.');
     return list.join(', ');
   }
   function withMessage(html, message) {
@@ -102,7 +102,7 @@
       if (!images.has(url)) images.set(url, { cid: `image-${images.size + 1}@echarts-report`, type, encoded });
       return `cid:${images.get(url).cid}`;
     });
-    const lines = ['MIME-Version: 1.0', 'X-Unsent: 1', `To: ${addresses(to, true)}`, ...(cc.trim() ? [`Cc: ${addresses(cc)}`] : []),
+    const lines = ['MIME-Version: 1.0', 'X-Unsent: 1', `To: ${addresses(to)}`, ...(cc.trim() ? [`Cc: ${addresses(cc)}`] : []),
       `Subject: ${header(subject || title)}`, `Content-Type: multipart/mixed; boundary="${boundary}"`, '',
       `--${boundary}`, `Content-Type: multipart/related; boundary="${related}"`, '', `--${related}`,
       'Content-Type: text/html; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', wrap(base64(body))];

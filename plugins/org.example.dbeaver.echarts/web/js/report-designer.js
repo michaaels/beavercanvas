@@ -6,7 +6,8 @@
   let selected = new Set(), clipboard = null, values = {}, saved = JSON.stringify(history.get()), persistTimer = null;
   let cleanup = null, previewCleanup = null, gesture = null, canvasRefreshPending = false, zoom = 1, reviewed = [], generating = false, sourceSelection = null, assets = null, email = null, discardAction = null;
   const charts = new Map();
-  let tablePages = {}, libraryDrag = null, dropPreview = null;
+  let tablePages = {}, tableViews = {}, libraryDrag = null, dropPreview = null;
+  let exportSequence = 0, pendingExport = null;
   let theme = { background: '#ffffff', foreground: '#243447', muted: '#657487', border: '#d5dce3', grid: '#e5eaf0', controlBackground: '#f3f3f3', dark: false };
   const execution = window.DBeaverReportExecution.create({
     approve: json => window.dbeaverApproveWidgetQueries?.(json), execute: (id, sql, source) => window.dbeaverExecuteWidgetQuery?.(id, sql, source),
@@ -85,13 +86,14 @@
       }
     }
     return {
-      show(widget, insert = false) {
-        const nextKey = JSON.stringify([widget.id, widget.parentId, widget.layout, insert]);
+      show(widget, insert = false, flow = false) {
+        const nextKey = JSON.stringify([widget.id, widget.parentId, widget.layout, insert, flow]);
         if (nextKey !== key) {
           planned = M.clone(baseline);
           if (insert) planned.push(M.clone(widget));
+          else if (flow) L.moveInFlow(planned, widget.id, widget.layout, M.BOUNDS);
           else planned.find(item => item.id === widget.id).layout = { ...widget.layout };
-          M.place(planned, widget.id); key = nextKey;
+          M.place(planned, flow ? undefined : widget.id); key = nextKey;
         }
         apply(planned);
       },
@@ -157,7 +159,7 @@
     cleanup?.(); charts.clear();
     const state = execution.state();
     clearDropPreview();
-    cleanup = W.renderReport($('reportCanvas'), current(), state.snapshots, { ...state, charts, tablePages, parameters: values, designer: true, decorate });
+    cleanup = W.renderReport($('reportCanvas'), current(), state.snapshots, { ...state, charts, tablePages, tableViews, parameters: values, designer: true, decorate });
     // Delegated drop handling uses the original geometry to avoid target drift.
     for (const grid of $('reportCanvas').querySelectorAll('.report-grid')) {
       grid.style.position = 'relative';
@@ -262,8 +264,8 @@
       if (!delta || gesture) return; event.preventDefault(); event.stopPropagation();
       change(draft => {
         const item = draft.widgets.find(item => item.id === widget.id);
-        item.layout = edge ? L.resizeLayout(item.layout, edge, ...delta, M.BOUNDS) : L.normalizeLayout({ ...item.layout, x: item.layout.x + delta[0], y: item.layout.y + delta[1] }, M.BOUNDS);
-        draft.priorityId = widget.id;
+          if (edge) { item.layout = L.resizeLayout(item.layout, edge, ...delta, M.BOUNDS); draft.priorityId = widget.id; }
+          else L.moveInFlow(draft.widgets, widget.id, { ...item.layout, x: item.layout.x + delta[0], y: item.layout.y + delta[1] }, M.BOUNDS);
       });
       const updated = $('reportCanvas').querySelector(`[data-component-id="${CSS.escape(widget.id)}"]`);
       updated?.querySelector(edge ? `[data-edge="${edge}"]` : '.report-move')?.focus();
@@ -279,7 +281,7 @@
   }
   function startGesture(event, frame, widget, grid, edge, handle) {
     if (gesture || event.button !== 0 || event.isPrimary === false) return;
-    event.preventDefault(); event.stopPropagation(); select(widget.id);
+    event.preventDefault(); event.stopPropagation(); select(widget.id); handle.focus();
     const origin = grid.getBoundingClientRect(), initial = { ...widget.layout }, x = event.clientX, y = event.clientY, pointerId = event.pointerId;
     const pitch = (origin.width + current().page.gap * zoom) / 12, rowPitch = (24 + current().page.gap) * zoom;
     let candidate = initial;
@@ -290,7 +292,7 @@
       latest = pointer; const box = grid.getBoundingClientRect();
       const dx = Math.round((pointer.clientX - x - box.x + origin.x) / pitch), dy = Math.round((pointer.clientY - y - box.y + origin.y) / rowPitch);
       candidate = edge === 'move' ? L.normalizeLayout({ ...initial, x: initial.x + dx, y: initial.y + dy }, M.BOUNDS) : L.resizeLayout(initial, edge, dx, dy, M.BOUNDS);
-      layouts.show({ ...widget, layout: candidate }); resizeStage();
+      layouts.show({ ...widget, layout: candidate }, false, edge === 'move'); resizeStage();
     }
     function finish(commit) {
       gesture = null; clearInterval(timer); document.body.classList.remove('report-dragging'); guide.remove();
@@ -299,7 +301,10 @@
       handle.removeEventListener('lostpointercapture', cancel);
       try { handle.releasePointerCapture(pointerId); } catch (error) { /* Capture may have ended in the native browser. */ }
       layouts.restore();
-      if (commit) change(draft => { draft.widgets.find(item => item.id === widget.id).layout = candidate; draft.priorityId = widget.id; });
+      if (commit) change(draft => {
+          if (edge === 'move') L.moveInFlow(draft.widgets, widget.id, candidate, M.BOUNDS);
+          else { draft.widgets.find(item => item.id === widget.id).layout = candidate; draft.priorityId = widget.id; }
+        });
       else renderCanvas();
     }
     function move(pointer) { if (pointer.pointerId === pointerId) { pointer.preventDefault(); moved ||= Math.hypot(pointer.clientX - x, pointer.clientY - y) > 3; update(pointer); } }
@@ -318,12 +323,15 @@
     try { handle.setPointerCapture(pointerId); } catch (error) { /* Document events are the fallback. */ }
   }
   function showDialog(id) { $(id).showModal(); }
-  function loadReport(input, asNew = false) {
+  function loadReport(input, asNew = false, previewData = {}) {
     const normalized = M.normalize(typeof input === 'string' ? JSON.parse(input) : input);
-    gesture?.cancel(); clearDropPreview(true); tablePages = {}; window.DBeaverWidgetEditor.close(); execution.reset(); history.replace(normalized); selected.clear();
+    pendingExport = null; $('saveReportEmail').disabled = $('saveReportExport').disabled = false;
+    gesture?.cancel(); clearDropPreview(true); tablePages = {}; tableViews = {}; window.DBeaverWidgetEditor.close(); execution.reset(); history.replace(normalized); selected.clear();
     values = Object.fromEntries(normalized.parameters.map(parameter => [parameter.name, parameter.default])); saved = asNew ? '' : JSON.stringify(current());
     document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
-    generating = false; render(); status('Template ready. Review SQL before refreshing its data.');
+    execution.reconcile(current(), values);
+    for (const source of current().sources) if (previewData[source.id]) execution.seed(source.id, previewData[source.id]);
+    generating = false; render(); status(Object.keys(execution.state().snapshots).length ? 'Dashboard data ready. No queries were executed; review SQL before refreshing.' : 'Template ready. Review SQL before refreshing its data.');
   }
   function createDocument(document) {
     // A new report opens in the workbench view, keeping a file editor's input intact.
@@ -415,8 +423,12 @@
   }
   function editChart() {
     const item = first(); if (!item || item.type !== 'chart') return;
+    openChart(item);
+  }
+  function openChart(item, newComponent = false) {
     const existing = current().sources.find(source => source.id === item.sourceId), source = existing || M.source({ id: M.id('source') });
-    window.DBeaverWidgetEditor.open({ widget: { id: item.id, title: item.title, source, chart: item.config.chart, refreshPolicy: { mode: 'manual', intervalSeconds: 0 } },
+    window.DBeaverWidgetEditor.open({ widget: { id: item.id, title: item.title, titleMode: item.titleMode, source, chart: item.config.chart, refreshPolicy: { mode: 'manual', intervalSeconds: 0 } },
+      componentName: 'chart',
       snapshot: execution.state().snapshots[item.sourceId], isNew: !existing, theme: { ...theme, background: '#ffffff', foreground: '#243447', muted: '#657487', controlBackground: '#f6f8fa' }, renderer: 'canvas',
       runPreview(id, source) {
         const runtime = M.runtimeSource(current(), source, values);
@@ -426,11 +438,17 @@
       save(draft, snapshot, approved) {
         const sourceId = existing?.id || source.id;
         const ok = change(document => {
+            if (newComponent) {
+              const widget = M.clone(item);
+              widget.layout.y = Math.max(0, ...document.widgets.filter(widget => !widget.parentId).map(widget => widget.layout.y + widget.layout.height));
+              document.widgets.push(widget); document.priorityId = widget.id;
+            }
           const widget = document.widgets.find(widget => widget.id === item.id), query = M.source({ ...draft.source, id: sourceId });
           if (existing) Object.assign(document.sources.find(source => source.id === sourceId), query); else document.sources.push(query);
-          widget.sourceId = sourceId; widget.title = draft.title; widget.config.chart = { ...widget.config.chart, ...draft.chart };
+          widget.sourceId = sourceId; widget.title = draft.title; widget.titleMode = draft.titleMode; widget.config.chart = { ...widget.config.chart, ...draft.chart };
         });
         if (!ok) throw new Error('The chart could not be applied. Check the report limits.');
+          if (newComponent) select(item.id);
         if (snapshot && (approved || existing && JSON.stringify(source) === JSON.stringify(draft.source))) execution.seed(sourceId, snapshot);
       }
     });
@@ -439,21 +457,49 @@
     previewCleanup?.(); const state = execution.state();
     $('reportPreviewStatus').textContent = state.generatedAt ? `Data snapshot: ${new Date(state.generatedAt).toLocaleString()}` : 'Design preview. Refresh data to populate SQL components.';
     showDialog('reportPreviewDialog');
-    previewCleanup = W.renderReport($('reportPreviewCanvas'), current(), state.snapshots, { ...state, tablePages, parameters: values });
+    previewCleanup = W.renderReport($('reportPreviewCanvas'), current(), state.snapshots, { ...state, tablePages: { ...tablePages }, tableViews: M.clone(tableViews), lockTableViews: true, parameters: values });
   }
   function exportAssets() {
     if (!assets) assets = JSON.parse(window.dbeaverReportExportAssets?.() || 'null');
     if (!assets) throw new Error('Bundled export assets are unavailable.'); return assets;
   }
   function exports() {
-    const state = execution.ready(current()), context = { generatedAt: state.generatedAt || new Date().toISOString(), parameters: values, tablePages: { ...tablePages } };
+    const state = execution.ready(current()), context = { generatedAt: state.generatedAt || new Date().toISOString(), parameters: values, tablePages: { ...tablePages }, tableViews: M.clone(tableViews), lockTableViews: true };
     return { interactive: () => window.DBeaverReportExport.interactive(current(), state.snapshots, context, exportAssets()),
       email: () => window.DBeaverReportExport.emailHtml(current(), state.snapshots, context, window.DBeaverReportExport.chartImages(charts)) };
   }
-  function exportFile(content, kind, open = false) {
-    const result = window.dbeaverExportReport?.(content, kind, current().title, open);
-    if (result) { const info = typeof result === 'string' ? JSON.parse(result) : result; status(kind === 'eml' ? `Draft saved${info.opened ? ' and opened in the mail client' : ''}. Email was not sent: ${info.path}` : `Report exported: ${info.path}`); }
-    else status('Export cancelled or unavailable.');
+  function exportFile(content, kind, open = false, dialogId = null) {
+    if (pendingExport) throw new Error('Finish the current file save first.');
+    const id = `report-export-${Date.now().toString(36)}-${++exportSequence}`;
+    pendingExport = { id, kind, dialogId };
+    $('saveReportEmail').disabled = $('saveReportExport').disabled = true;
+    if (dialogId) $(dialogId).close();
+    status(kind === 'eml' ? 'Choose a file to save the email draft.' : 'Choose a file to export the report.');
+    try {
+      if (typeof window.dbeaverExportReportAsync === 'function') {
+        if (window.dbeaverExportReportAsync(id, content, kind, current().title, open) !== true) throw new Error('The file save could not start. Try again.');
+      } else {
+        const result = window.dbeaverExportReport?.(content, kind, current().title, open);
+        reportExportFinished(id, result ? typeof result === 'string' ? JSON.parse(result) : result : { cancelled: true });
+      }
+    } catch (error) { reportExportFinished(id, { error: error.message }); }
+  }
+  function reportExportFinished(id, result) {
+    if (!pendingExport || pendingExport.id !== id) return false;
+    const { kind, dialogId } = pendingExport; pendingExport = null;
+    $('saveReportEmail').disabled = $('saveReportExport').disabled = false;
+    if (result?.error || result?.cancelled || !result?.path) {
+      const message = result?.error || 'File save cancelled. Your draft is retained.';
+      status(message, Boolean(result?.error));
+      if (dialogId) showDialog(dialogId);
+      if (kind === 'eml' && result?.error) showEmailError(message);
+    } else {
+      status(kind === 'eml' ? `Draft saved${result.opened ? ' and opened in the mail client' : ''}. Email was not sent: ${result.path}` : `Report exported: ${result.path}`);
+    }
+    return true;
+  }
+  function showEmailError(message) {
+    const error = $('reportEmailError'); error.textContent = message; error.tabIndex = -1; error.focus();
   }
   function composeEmail() {
     try {
@@ -516,8 +562,15 @@
     document.addEventListener('dragover', event => { if (!event.target.closest('#reportCanvas')) clearDropPreview(); });
     document.addEventListener('keydown', event => { if (event.key === 'Escape' && libraryDrag) clearDropPreview(true); });
     window.addEventListener('blur', () => clearDropPreview(true));
-    const click = (id, action) => $(id).addEventListener('click', () => { try { action(); } catch (error) { status(error.message, true); } });
+    const click = (id, action) => $(id).addEventListener('click', () => {
+      const menu = $(id).closest('.report-action-menu');
+      if (menu) { menu.open = false; menu.querySelector('summary').focus(); }
+      try { action(); } catch (error) { status(error.message, true); }
+    });
     click('newReport', () => createDocument(M.create()));
+    click('reportStartChart', () => openChart(M.widget('chart'), true));
+    click('reportStartHeading', () => add('heading'));
+    click('reportStartTemplate', templates);
     click('openReport', () => window.dbeaverOpenReport?.());
     click('saveReport', () => save());
     click('duplicateReport', () => { const copy = M.clone(current()); copy.title += ' (copy)'; copy.defaultTemplate = false; createDocument(copy); });
@@ -526,6 +579,7 @@
     click('redoReport', () => { history.redo(); execution.reconcile(current(), values); notifyChanges(); render(); });
     click('compactReport', () => { if (change(draft => M.compact(draft.widgets))) status('Vertical gaps closed. Columns and sizes retained; Undo restores the previous layout.'); });
     $('reportTitle').addEventListener('input', () => change(draft => { draft.title = $('reportTitle').value; }, { mergeKey: 'report.title', render: false }));
+    $('componentProperties').addEventListener('focusout', () => history.breakMerge());
     $('reportZoom').addEventListener('change', () => { zoom = Number($('reportZoom').value); renderCanvas(); });
     click('reportData', () => showData()); click('reportParameters', () => { renderParameters(); showDialog('reportParameterDialog'); });
     click('addReportSource', () => { const source = M.source({ name: `Query ${current().sources.length + 1}` }); if (change(draft => { draft.sources.push(source); })) { sourceSelection = source.id; renderSources(); } });
@@ -535,16 +589,34 @@
     click('runReportQueries', () => { $('reportReviewDialog').close(); try { execution.run(current(), values, reviewed); } catch (error) { generating = false; throw error; } });
     $('reportReviewDialog').addEventListener('cancel', () => { generating = false; });
     click('previewReport', showPreview); click('exportReport', () => showDialog('reportExportDialog')); click('outlookReport', composeEmail); click('reportTemplates', templates);
+    const actionMenus = [...document.querySelectorAll('.report-action-menu')];
+    const closeMenus = (except = null) => actionMenus.forEach(menu => { if (menu !== except) menu.open = false; });
+    actionMenus.forEach(menu => {
+      menu.addEventListener('toggle', () => {
+        if (!menu.open) return;
+        closeMenus(menu);
+        const panel = menu.querySelector('.report-action-panel'), box = menu.getBoundingClientRect();
+        panel.style.left = `${Math.max(12, Math.min(box.left, window.innerWidth - panel.offsetWidth - 12)) - box.left}px`;
+      });
+    });
+    window.addEventListener('resize', () => closeMenus());
+    document.addEventListener('pointerdown', event => { if (!event.target.closest('.report-action-menu')) closeMenus(); });
+    document.addEventListener('keydown', event => {
+      if (event.key !== 'Escape') return;
+      const open = actionMenus.find(menu => menu.open);
+      if (open) { event.preventDefault(); event.stopImmediatePropagation(); closeMenus(); open.querySelector('summary').focus(); }
+    });
     $('reportEmailMessage').addEventListener('change', updateEmailPreview);
     click('saveReportExport', () => {
-      const mode = $('reportExportFormat').value; exportFile(mode === 'template' ? JSON.stringify(current()) : exports()[mode](), mode); $('reportExportDialog').close();
+      const mode = $('reportExportFormat').value; exportFile(mode === 'template' ? JSON.stringify(current()) : exports()[mode](), mode, false, 'reportExportDialog');
     });
     click('saveReportEmail', () => {
       try {
       const content = window.DBeaverReportExport.eml({ to: $('reportEmailTo').value, cc: $('reportEmailCc').value, subject: $('reportEmailSubject').value,
         message: $('reportEmailMessage').value, html: email.html, attachment: $('reportEmailAttach').checked ? email.interactive() : null, title: current().title });
-      exportFile(content, 'eml', $('reportEmailOpen').checked); $('reportEmailDialog').close();
-      } catch (error) { $('reportEmailError').textContent = error.message; }
+      $('reportEmailError').textContent = '';
+      exportFile(content, 'eml', $('reportEmailOpen').checked, 'reportEmailDialog');
+      } catch (error) { showEmailError(error.message); }
     });
     click('reportConfirmDiscard', () => { $('reportConfirmDialog').close(); const action = discardAction; discardAction = null; action?.(); });
     document.querySelectorAll('[data-close]').forEach(button => button.addEventListener('click', () => { $(button.dataset.close).close(); if (button.dataset.close === 'reportReviewDialog') generating = false; }));
@@ -564,11 +636,11 @@
     });
     render(); window.dbeaverBrowserReady?.();
   }
-  window.DBeaverECharts = Object.freeze({ loadReport, reportDocument: () => M.clone(current()), setTheme,
+  window.DBeaverECharts = Object.freeze({ loadReport, reportDocument: () => M.clone(current()), setTheme, reportExportFinished,
     markReportSaved: () => { saved = JSON.stringify(current()); renderControls(); },
     setWidgetSnapshot: (id, snapshot) => window.DBeaverWidgetEditor.receiveSnapshot(id, snapshot) || execution.receive(id, snapshot),
     setWidgetError: (id, message) => window.DBeaverWidgetEditor.receiveError(id, message) || execution.receiveError(id, message),
-    setLoading: () => {}, setSnapshot: () => {}, setError: message => status(message, true), dispose: () => { gesture?.cancel(); canvasRefreshPending = false; clearDropPreview(true); execution.stop(); cleanup?.(); previewCleanup?.(); window.DBeaverWidgetEditor.close(); } });
+    setLoading: () => {}, setSnapshot: () => {}, setError: message => status(message, true), dispose: () => { pendingExport = null; gesture?.cancel(); canvasRefreshPending = false; clearDropPreview(true); execution.stop(); cleanup?.(); previewCleanup?.(); window.DBeaverWidgetEditor.close(); } });
   window.addEventListener('pagehide', () => { window.clearTimeout(persistTimer); window.DBeaverECharts.dispose(); });
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();

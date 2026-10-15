@@ -6,7 +6,7 @@ const vm = require('node:vm');
 
 const context = { window: {} };
 vm.createContext(context);
-for (const file of ['dashboard-layout.js', 'dashboard.js']) {
+for (const file of ['geo-data.js', 'analytics.js', 'dashboard-layout.js', 'dashboard.js']) {
   vm.runInContext(fs.readFileSync('plugins/org.example.dbeaver.echarts/web/js/' + file, 'utf8'), context);
 }
 

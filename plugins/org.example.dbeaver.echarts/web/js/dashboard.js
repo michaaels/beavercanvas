@@ -32,12 +32,14 @@
       : chartConfiguration.yColumn ? [chartConfiguration.yColumn] : [];
     return {
       id: nextId(),
-      title: yColumns.length ? yColumns.join(', ') : 'Chart',
+      title: window.DBeaverEChartsAnalytics.chartTitle({ ...chartConfiguration, yColumns }),
+      titleMode: 'auto',
       source: normalizeSource(snapshot?.source),
       chart: {
         chartType: chartConfiguration.chartType || 'line',
         xColumn: chartConfiguration.xColumn || null,
         yColumns,
+        ...(chartConfiguration.map ? { map: window.DBeaverGeoData.normalize(chartConfiguration.map) } : {}),
         yAxes: chartConfiguration.yAxes || {},
         marks: chartConfiguration.marks || {}
       },
@@ -103,11 +105,13 @@
     return {
       id: typeof value?.id === 'string' && value.id ? value.id : nextId(),
       title: typeof value?.title === 'string' ? value.title.slice(0, 200) : 'Chart',
+      titleMode: value?.titleMode === 'auto' ? 'auto' : 'custom',
       source: normalizeSource(value?.source),
       chart: {
         chartType: typeof chart.chartType === 'string' ? chart.chartType : 'line',
         xColumn: typeof chart.xColumn === 'string' ? chart.xColumn : null,
         yColumns: Array.isArray(chart.yColumns) ? chart.yColumns.filter(name => typeof name === 'string').slice(0, 12) : [],
+        ...(chart.map ? { map: window.DBeaverGeoData.normalize(chart.map) } : {}),
         yAxes: normalizeDictionary(chart.yAxes),
         marks: normalizeDictionary(chart.marks)
       },
@@ -199,7 +203,8 @@
         if (!delta || activeGesture) return;
         event.preventDefault();
         const layout = proposedLayout(widget.layout, mode, delta[0], delta[1], edge);
-        layoutEngine.changeLayout(dashboard.widgets, widget.id, layout);
+        if (mode === 'move') layoutEngine.moveInFlow(dashboard.widgets, widget.id, layout);
+        else layoutEngine.changeLayout(dashboard.widgets, widget.id, layout);
         onChange();
         const updated = [...root.children].find(child => child.dataset.widgetId === widget.id);
         updated?.querySelector(mode === 'move' ? '.widget-drag-handle' : `[data-resize-edge="${edge}"]`)?.focus();
@@ -216,7 +221,21 @@
   function startLayoutGesture(event, mode, root, element, handle, widget, dashboard, onChange, edge = 'se') {
     if (activeGesture || (event.button ?? 0) !== 0 || event.isPrimary === false) return;
     event.preventDefault();
+    handle.focus();
     const initial = { ...widget.layout };
+    const baseline = dashboard.widgets.map(widget => ({ ...widget, layout: { ...widget.layout } }));
+    function planned() {
+      const widgets = baseline.map(widget => ({ ...widget, layout: { ...widget.layout } }));
+      if (mode === 'move') layoutEngine.moveInFlow(widgets, widget.id, candidate);
+      else layoutEngine.changeLayout(widgets, widget.id, candidate);
+      return widgets;
+    }
+    function applyPlan(widgets) {
+      for (const item of widgets) {
+        const frame = [...root.children].find(child => child.dataset.widgetId === item.id);
+        if (frame) applyLayout(frame, item.layout);
+      }
+    }
     const origin = root.getBoundingClientRect();
     const styles = window.getComputedStyle?.(root);
     const gap = parseFloat(styles?.columnGap) || layoutEngine.GAP;
@@ -246,14 +265,12 @@
       const dy = Math.round((pointer.clientY - startY - current.top + origin.top) / pitchY);
       const previous = candidate;
       candidate = proposedLayout(initial, mode, dx, dy, edge);
-      applyLayout(preview, candidate);
+      const widgets = planned(); applyPlan(widgets);
+      applyLayout(preview, widgets.find(item => item.id === widget.id).layout);
       if (mode === 'resize') {
-        applyLayout(element, candidate);
         if (candidate.width !== previous.width || candidate.height !== previous.height) {
           chartInstances.get(widget.id)?.resize();
         }
-      } else {
-        element.style.transform = `translate(${(candidate.x - initial.x) * pitchX}px, ${(candidate.y - initial.y) * pitchY}px)`;
       }
     }
 
@@ -273,13 +290,15 @@
       preview.remove();
       element.style.transform = '';
       applyLayout(element, initial);
+      applyPlan(baseline);
       element.classList.remove('widget-layout-active');
       root.classList.remove('dashboard-layout-active');
       root.style.cursor = previousCursor;
       chartInstances.get(widget.id)?.resize();
       const changed = ['x', 'y', 'width', 'height'].some(key => candidate[key] !== initial[key]);
       if (commit && changed) {
-        layoutEngine.changeLayout(dashboard.widgets, widget.id, candidate);
+        if (mode === 'move') layoutEngine.moveInFlow(dashboard.widgets, widget.id, candidate);
+        else layoutEngine.changeLayout(dashboard.widgets, widget.id, candidate);
         onChange();
       } else if (deferred) { render(deferred); }
     }
@@ -331,6 +350,7 @@
     title.title = 'Click to rename';
     title.addEventListener('blur', () => {
       widget.title = title.textContent.trim().slice(0, 200) || 'Chart';
+      widget.titleMode = 'custom';
       onChange();
     });
 
@@ -425,6 +445,9 @@
         : 'Run the widget source query or select compatible columns.';
       return;
     }
+    let option;
+    try { option = window.DBeaverEChartsAnalytics.buildOption(context); }
+    catch (error) { element.classList.add('message'); element.textContent = error.message; return; }
     const chart = window.echarts.init(element, null, { renderer });
     chartInstances.set(widget.id, chart);
     if (typeof ResizeObserver === 'function') {
@@ -432,14 +455,16 @@
       observer.observe(element);
       resizeObservers.set(widget.id, observer);
     }
-    const option = window.DBeaverEChartsAnalytics.buildOption(context);
     chart.setOption(option, { notMerge: true, lazyUpdate: false });
     if (widget.drillDown.enabled) {
       chart.on('click', event => {
-        const value = categoryFromEvent(event);
+        const map = widget.chart.chartType === 'map' ? window.DBeaverGeoData.infer(widget.chart, snapshot.columns) : null;
+        const field = map ? map.label : widget.chart.xColumn;
+        const value = map ? event.data?.filterValue : categoryFromEvent(event);
+        if (!field || value === undefined) return;
         if (value === null) return;
-        dashboard.filters[widget.chart.xColumn] = value;
-        dashboard.variables[widget.chart.xColumn] = value;
+        dashboard.filters[field] = value;
+        dashboard.variables[field] = value;
         onChange();
       });
     }
@@ -451,7 +476,7 @@
     const yIndices = widget.chart.yColumns
       .map(name => snapshot.columns.findIndex(column => column.name === name && column.kind === 'NUMERIC'))
       .filter(index => index >= 0);
-    if (xIndex < 0 || !yIndices.length) return null;
+    if (widget.chart.chartType !== 'map' && (xIndex < 0 || !yIndices.length)) return null;
     const rows = filterRows(snapshot.rows, snapshot.columns, dashboard.filters);
     const yAxes = Object.fromEntries(yIndices.map(index => [
       index,
@@ -465,6 +490,7 @@
       yIndices,
       yAxes,
       chartType: widget.chart.chartType,
+      map: widget.chart.map,
       dashboard: true,
       marks: widget.chart.marks,
       theme
@@ -522,6 +548,7 @@
     createDashboard,
     createWidget,
     buildContext,
+    filterRows,
     dispose,
     normalizeDashboard,
     portableDashboard,

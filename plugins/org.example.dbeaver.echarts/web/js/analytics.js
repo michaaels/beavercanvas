@@ -17,7 +17,7 @@
     { id: 'boxplot', label: 'Boxplot', group: 'Distribution', hint: 'Summarize the distribution of each selected numeric series.' },
     { id: 'heatmap', label: 'Heatmap', group: 'Distribution', hint: 'Compare numeric measures by category using a color scale.' },
     { id: 'gauge', label: 'Gauge', group: 'Indicators and maps', hint: 'Show the average of the first selected numeric series.' },
-    { id: 'map', label: 'Map', group: 'Indicators and maps', hint: 'Choose longitude as X. Select latitude first, then the numeric value as the second series.' }
+    { id: 'map', label: 'Map', group: 'Indicators and maps', hint: 'Choose a location format, then add the fields to show at each point. Coordinates use WGS84 degrees.' }
   ].map(type => Object.freeze(type)));
   function populateTypes(select) {
     select.replaceChildren();
@@ -360,27 +360,24 @@
 
   function buildMap(context) {
     const { rows, columns, xIndex, yIndices, theme } = context;
-    const latitudeIndex = yIndices[0];
-    const valueIndex = yIndices[1] ?? latitudeIndex;
-    const data = rows.map((row, index) => {
-      const longitude = toNumber(row[xIndex]);
-      const latitude = toNumber(row[latitudeIndex]);
-      const value = toNumber(row[valueIndex]);
-      return {
-        name: `Row ${index + 1}`,
-        value: [longitude, latitude, Number.isFinite(value) ? value : 1]
-      };
-    }).filter(item => Number.isFinite(item.value[0]) && Number.isFinite(item.value[1]));
+    const map = context.map ? window.DBeaverGeoData.normalize(context.map) : window.DBeaverGeoData.infer({ xColumn: columns[xIndex]?.name, yColumns: yIndices.map(index => columns[index].name) }, columns);
+    const result = window.DBeaverGeoData.data(map, columns, rows);
+    if (rows.length && !result.points.length) throw new Error('No valid map points. Check the coordinate format, order, WGS84 ranges and numeric value.');
+    const data = result.points;
+    const valueName = map.value || 'Locations';
+    const escape = value => String(value ?? '(null)').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
     const [minimum, maximum] = extent(data.map(item => item.value[2]));
     const option = baseOption(context);
-    option.title.text = `${columns[valueIndex].name} by location`;
+    option.title.text = `${valueName} by location`;
     option.tooltip = {
       trigger: 'item',
       confine: true,
       backgroundColor: theme.controlBackground,
       borderColor: theme.border,
       textStyle: { color: theme.foreground },
-      formatter: params => `${params.name}<br>Lon: ${params.value[0]}<br>Lat: ${params.value[1]}<br>Value: ${params.value[2]}`
+      formatter: params => [escape(params.name), `Longitude: ${params.value[0]}`, `Latitude: ${params.value[1]}`,
+        ...(map.value ? [`${escape(map.value)}: ${params.value[2]}`] : []),
+        ...(params.data.details || []).map(detail => `${escape(detail.name)}: ${escape(typeof detail.value === 'object' && detail.value !== null ? JSON.stringify(detail.value) : detail.value)}`)].join('<br>')
     };
     option.legend = undefined;
     option.geo = {
@@ -391,27 +388,25 @@
       itemStyle: { areaColor: theme.controlBackground, borderColor: theme.border },
       emphasis: { itemStyle: { areaColor: '#fac858' }, label: { color: theme.foreground } }
     };
-    option.visualMap = {
+    option.visualMap = map.value ? {
       type: 'continuous', min: minimum, max: maximum, dimension: 2,
       right: 8, bottom: 24, calculable: true, textStyle: { color: theme.muted },
       ...(context.dashboard ? { itemHeight: 100, top: 'middle', bottom: undefined } : {})
-    };
+    } : undefined;
     option.series = [{
-      name: columns[valueIndex].name,
+      name: valueName,
       type: 'scatter',
       coordinateSystem: 'geo',
       progressive: 5000,
-      symbolSize: value => Math.max(4, Math.min(24, 4 + 20 * (value[2] - minimum) / Math.max(maximum - minimum, 1))),
+      symbolSize: value => map.value ? Math.max(4, Math.min(24, 4 + 20 * (value[2] - minimum) / Math.max(maximum - minimum, 1))) : 10,
       data
     }];
     return option;
   }
 
   function buildOption(context) {
+    if (context.chartType === 'map') return buildMap(context);
     if (context.xIndex < 0 || !context.columns[context.xIndex] || !context.yIndices.length) throw new Error('Choose a category and numeric series.');
-    if (context.chartType === 'map' && (context.columns[context.xIndex].kind !== 'NUMERIC' || context.yIndices.length < 2)) {
-      throw new Error('Map requires longitude as X and at least two series: latitude first, then the value.');
-    }
     if (CARTESIAN_TYPES.has(context.chartType)) return buildCartesian(context);
     if (context.chartType === 'pie') return buildPie(context);
     if (context.chartType === 'gauge') return buildGauge(context);
@@ -420,14 +415,18 @@
     if (context.chartType === 'boxplot') return buildBoxplot(context);
     if (context.chartType === 'treemap') return buildTreemap(context);
     if (context.chartType === 'funnel') return buildFunnel(context);
-    if (context.chartType === 'map') return buildMap(context);
     throw new Error(`Unsupported chart type: ${context.chartType}`);
   }
 
   const hasRenderableData = option => Array.isArray(option?.series)
     && option.series.some(series => Array.isArray(series.data) && series.data.length > 0);
 
-  window.DBeaverEChartsAnalytics = Object.freeze({ buildOption, displayValue, hasRenderableData, toNumber, CHART_TYPES, populateTypes });
+  function chartTitle(config) {
+    if (config.chartType === 'map' && config.map) return `${config.map.value || 'Locations'} by ${config.map.label || 'location'}`.slice(0, 200);
+    const names = (config.yColumns || []).join(', ');
+    return (names ? `${names}${config.xColumn && config.chartType !== 'gauge' ? ` by ${config.xColumn}` : ''}` : 'Chart').slice(0, 200);
+  }
+  window.DBeaverEChartsAnalytics = Object.freeze({ buildOption, chartTitle, displayValue, hasRenderableData, toNumber, CHART_TYPES, populateTypes });
   if (typeof document !== 'undefined') {
     const select = document.getElementById('chartType'); if (select) populateTypes(select);
   }

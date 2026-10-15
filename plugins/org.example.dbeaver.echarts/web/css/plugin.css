@@ -359,7 +359,49 @@ button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-v
 .widget-editor-marks label { display: flex; align-items: center; }
 .widget-editor-preview { height: 300px; border: 1px solid var(--border); margin-bottom: 10px; }
 .widget-editor-data { overflow: auto; max-height: 150px; }
-.widget-editor-data table { border-collapse: collapse; width: 100%; font-size: 11px; }
+.widget-editor-data table { border-collapse: collapse; width: 100%; font-size: 12px; }
 .widget-editor-data th, .widget-editor-data td { text-align: left; padding: 5px 8px; border: 1px solid var(--border); white-space: nowrap; max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
 .widget-editor-actions { display: flex; justify-content: flex-end; gap: 8px; position: sticky; bottom: -18px; background: var(--bg); padding: 12px 0; }
 .widget-editor button:disabled { opacity: .55; cursor: default; }
+.widget-editor-steps { display: flex; border-bottom: 1px solid var(--border); gap: 4px; margin: 16px 0 10px; }
+.widget-editor-steps [role=tab] { flex: 1; padding: 10px 12px; border: 0; border-bottom: 3px solid transparent; border-radius: 0; background: transparent; cursor: pointer; }
+.widget-editor-steps [aria-selected=true] { border-bottom-color: var(--accent); color: var(--accent); font-weight: 600; }
+.widget-editor [role=tabpanel][hidden] { display: none; }
+.widget-editor-help { max-width: 75ch; font-size: 13px; line-height: 1.5; }
+.widget-editor h3 { font-size: 15px; margin: 16px 0 8px; }
+.widget-editor #widgetEditorStatus { color: var(--fg); }
+.widget-editor #widgetEditorDataPanel .widget-editor-data { max-height: 340px; margin-bottom: 16px; }
+.widget-editor-advanced { border-top: 1px solid var(--border); margin: 12px 0; }
+.widget-editor-advanced summary { cursor: pointer; padding: 10px 0; }
+.widget-editor .primary-action { background: var(--accent); border-color: var(--accent); color: white; font-weight: 600; }
+.dark-theme .widget-editor .primary-action { color: #152638; }
+.widget-editor :is(button,input,select,textarea,summary):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Location and point data replace Cartesian axes; share the same controls in both editors. */
+.map-fields { display: grid; align-content: start; gap: 12px; min-width: 0; }
+.widget-editor-data-query { margin: 10px 0 16px; }
+.widget-editor .widget-auto-title { display: flex; align-items: center; gap: 7px; margin: 6px 0; }
+.widget-editor .widget-auto-title input { width: auto; }
+.widget-editor-data-query pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 160px; overflow: auto; }
+.map-fields fieldset { border: 1px solid var(--border); padding: 12px; margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; min-width: 0; }
+.map-fields legend { font-weight: 600; padding: 0 4px; }
+.map-fields label { display: grid; gap: 4px; min-width: 0; }
+.map-fields select { width: 100%; min-width: 0; padding: 7px 8px; border: 1px solid var(--border); border-radius: 4px; color: var(--fg); background: var(--control-bg); font: inherit; }
+.map-fields-help, .map-fields-status { grid-column: 1 / -1; margin: 0; font-size: 12px; line-height: 1.5; max-width: 78ch; }
+.map-fields-help { color: var(--muted); }
+.map-fields-status { border-left: 3px solid var(--accent); padding: 8px 10px; background: var(--control-bg); }
+.map-fields-status[data-invalid=true] { border-left-style: dashed; }
+.map-detail-fields { display: flex; flex-wrap: wrap; gap: 8px 16px; grid-column: 1 / -1; max-height: 140px; overflow: auto; }
+.map-detail-fields label { display: flex; align-items: center; gap: 6px; overflow-wrap: anywhere; }
+.map-fields fieldset > span { grid-column: 1 / -1; }
+.widget-editor [hidden], .toolbar [hidden], .map-fields[hidden] { display: none; }
+.map-mode .workspace { display: grid; grid-template-columns: minmax(240px, 320px) minmax(0, 1fr); }
+.map-mode #chartView { position: relative; grid-column: 2; }
+#resultMapFields { padding: 12px; overflow: auto; border-right: 1px solid var(--border); }
+#resultMapFields fieldset { grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 640px) {
+  .map-fields fieldset { grid-template-columns: minmax(0, 1fr); }
+  .map-mode .workspace { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(140px, 45%) minmax(0, 1fr); }
+  .map-mode #chartView { grid-column: 1; grid-row: 2; }
+  #resultMapFields { border-right: 0; border-bottom: 1px solid var(--border); }
+}

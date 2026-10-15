@@ -9,16 +9,38 @@
     if (type === 'checkbox') { control.checked = Boolean(value); row.className = 'report-check'; }
     else control.value = value ?? '';
     control.setAttribute('aria-label', label);
-    control.addEventListener(['text', 'textarea', 'color'].includes(type) ? 'input' : 'change', () => action(type === 'checkbox' ? control.checked : type === 'number' ? Number(control.value) : control.value));
+    let lastNumber = control.value;
+    const apply = () => {
+      if (type === 'number') {
+        if (control.value === '' || !Number.isFinite(control.valueAsNumber) || control.value === lastNumber) return;
+        lastNumber = control.value;
+      }
+      action(type === 'checkbox' ? control.checked : type === 'number' ? control.valueAsNumber : control.value);
+    };
+    control.addEventListener(['text', 'textarea', 'color', 'number'].includes(type) ? 'input' : 'change', apply);
+    if (type === 'number') control.addEventListener('change', apply);
     row.append(control); return row;
   }
   function section(root, title) { const body = node('section', undefined, 'report-property-section'); body.append(node('h3', title)); root.append(body); return body; }
   function render(root, report, selectedIds, snapshots, hooks) {
     const openColumns = new Set([...root.querySelectorAll('.report-column-config[open]')].map(element => element.dataset.columnName));
+    const openSections = new Set([...root.querySelectorAll('details[data-property-section][open]')].map(element => element.dataset.propertySection));
+    const previousItem = root.dataset.selectedItem;
     root.replaceChildren();
     const selected = report.widgets.filter(widget => selectedIds.has(widget.id));
     const item = selected[0];
-    const change = (action, key, textEdit = false) => hooks.change(action, { mergeKey: key, render: !textEdit });
+    root.dataset.selectedItem = item?.id || '';
+    const advancedSection = title => {
+      const body = node('details', undefined, 'report-property-section');
+      body.dataset.propertySection = title;
+      body.open = previousItem === item.id && openSections.has(title);
+      body.append(node('summary', title));
+      return body;
+    };
+    const change = (action, key, textEdit = false) => {
+      const active = document.activeElement, live = root.contains(active) && active.type === 'number';
+      hooks.change(action, { mergeKey: key || (live ? `${item?.id || 'page'}.${active.getAttribute('aria-label')}` : undefined), render: !textEdit && !live });
+    };
     if (!item) {
       root.append(field('Description', report.description, 'textarea', value => change(draft => { draft.description = value; }, 'report.description', true)),
         field('Category', report.category, 'text', value => change(draft => { draft.category = value; }, 'report.category', true)),
@@ -41,8 +63,8 @@
     function update(fieldName, value, key, textEdit = false) {
       change(draft => { const widget = draft.widgets.find(widget => widget.id === item.id); fieldName(widget, value); draft.priorityId = item.id; }, key && `${item.id}.${key}`, textEdit);
     }
-    root.append(field('Component title', item.title, 'text', value => update((widget, value) => { widget.title = value; }, value, 'title', true)));
-    const position = section(root, 'Position and size'), grid = node('div', undefined, 'report-property-grid');
+    root.append(field('Component title', item.title, 'text', value => update((widget, value) => { widget.title = value; widget.titleMode = 'custom'; }, value, 'title', true)));
+    const position = advancedSection('Position and size'), grid = node('div', undefined, 'report-property-grid');
     for (const [name, label] of [['x', 'Column'], ['y', 'Row'], ['width', 'Width (columns)'], ['height', 'Height (rows)']]) {
       grid.append(field(label, item.layout[name], 'number', value => update((widget, value) => { widget.layout[name] = value; }, value)));
     }
@@ -50,7 +72,7 @@
     const containers = report.widgets.filter(widget => ['section', 'header', 'footer'].includes(widget.type) && widget.id !== item.id);
     position.append(field('Section', item.parentId || '', 'select', value => update((widget, value) => { widget.parentId = value || null; widget.layout.x = 0; widget.layout.y = 0; }, value),
       [['', 'Report sheet'], ...containers.map(widget => [widget.id, widget.title])]), button('Move earlier', () => hooks.order(-1)), button('Move later', () => hooks.order(1)));
-    const style = section(root, 'Appearance');
+    const style = advancedSection('Appearance');
     style.append(field('Text color', item.style.color, 'color', value => update((widget, value) => { widget.style.color = value; }, value, 'color', true)),
       field('Background', item.style.background === 'transparent' ? '#ffffff' : item.style.background, 'color', value => update((widget, value) => { widget.style.background = value; }, value, 'background', true)),
       field('Transparent background', item.style.background === 'transparent', 'checkbox', value => update((widget, value) => { widget.style.background = value ? 'transparent' : '#ffffff'; }, value)));
@@ -88,13 +110,15 @@
     }
     if (item.type === 'table') {
       const body = section(root, 'Table');
-      body.append(field('Rows per page', item.config.pageSize, 'number', value => config('pageSize', value)),
-        field('Decimal places', item.config.decimals, 'number', value => config('decimals', value)),
+        body.append(field('Rows shown', item.config.pageSize === 0 ? 'auto' : 'fixed', 'select', value => config('pageSize', value === 'auto' ? 0 : 20),
+          [['auto', 'Fit rows to table height'], ['fixed', 'Fixed maximum per page']]));
+        if (item.config.pageSize !== 0) body.append(field('Rows per page', item.config.pageSize, 'number', value => config('pageSize', value)));
+        body.append(field('Decimal places', item.config.decimals, 'number', value => config('decimals', value)),
         field('Sort by', item.config.sortColumn, 'select', value => config('sortColumn', value), [['', 'Query order'], ...names]),
         field('Sort direction', item.config.sortDirection, 'select', value => config('sortDirection', value), ['asc', 'desc']),
         field('Show totals / subtotals', item.config.totals, 'checkbox', value => config('totals', value)),
         field('Subtotal group', item.config.groupBy, 'select', value => config('groupBy', value), [['', 'No grouping'], ...names]));
-      body.append(node('p', 'Email keeps the selected page and fits rows to the table height. Increase Rows per page and Height to show more.', 'report-placeholder'));
+        body.append(node('p', 'Stretch the table to show more rows. HTML and email keep the page shown in the designer. Fixed mode limits the maximum rows per page.', 'report-placeholder'));
       if (snapshot) {
         const chosen = W.tableColumns(item, snapshot);
         for (const column of snapshot.columns) {
@@ -129,12 +153,13 @@
       } else body.append(node('p', 'Refresh data to choose and format columns.', 'report-placeholder'));
     }
     if (item.sourceId) {
-      const body = section(root, 'Conditional visibility');
+      const body = advancedSection('Conditional visibility'); root.append(body);
       body.append(field('Show only when condition matches', item.config.visibility.enabled, 'checkbox', value => update((widget, value) => { widget.config.visibility.enabled = value; }, value)),
         field('Condition column (first row)', item.config.visibility.column, 'select', value => update((widget, value) => { widget.config.visibility.column = value; }, value), [['', 'Choose a column'], ...names]),
         field('Condition', item.config.visibility.operator, 'select', value => update((widget, value) => { widget.config.visibility.operator = value; }, value), [['notEmpty', 'Not empty'], ['gt', 'Greater than'], ['lt', 'Less than'], ['eq', 'Equals']]),
         field('Compare to', item.config.visibility.value, 'text', value => update((widget, value) => { widget.config.visibility.value = value; }, value, 'visibility.value', true)));
     }
+    root.append(style, position);
   }
   window.DBeaverReportProperties = Object.freeze({ field, button, section, render });
 })();

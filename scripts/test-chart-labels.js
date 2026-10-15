@@ -11,7 +11,7 @@ async function main() {
   try {
     const page = await browser.newPage({ viewport: { width: 1100, height: 700 } });
     await page.setContent('<div id="chart"></div>');
-    for (const file of ['echarts.min.js', 'analytics.js']) {
+    for (const file of ['echarts.min.js', 'geo-data.js', 'analytics.js']) {
       await page.addScriptTag({ path: path.join(root, 'plugins/org.example.dbeaver.echarts/web/js', file) });
     }
     const errors = [];

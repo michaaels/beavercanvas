@@ -23,3 +23,9 @@ attachment = next(part for part in message.iter_attachments() if part.get_filena
 assert attachment.get_payload(decode=True) == (folder / 'ventas-interactive.html').read_bytes()
 assert 'connectionId' not in attachment.get_content()
 print('Report EML OK: MIME decoded independently, Unicode subject/message, recipients, two inline PNG/CIDs and byte-identical offline HTML attachment; draft only')
+blank_draft = folder.parent / 'report-table-tests' / 'table.eml'
+if blank_draft.exists():
+    draft = BytesParser(policy=policy.default).parsebytes(blank_draft.read_bytes())
+    assert draft['X-Unsent'] == '1' and str(draft['To']) == '' and not draft.defects
+    assert 'Keep this draft after cancelling.' in draft.get_body(preferencelist=('html',)).get_content()
+    print('Blank-recipient table draft OK: independently decoded MIME, retained message and unsent flag')

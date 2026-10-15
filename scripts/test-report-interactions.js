@@ -34,7 +34,7 @@ async function main() {
     async function load(zoom = '1') {
       await page.evaluate(fixture => window.DBeaverECharts.loadReport(fixture), fixture);
       await page.locator('#reportZoom').selectOption(zoom);
-      await page.locator('#generateReport').click(); await page.locator('#runReportQueries').click();
+      await page.locator('#reportDataMenu > summary').click(); await page.locator('#generateReport').click(); await page.locator('#runReportQueries').click();
       await page.waitForFunction(() => document.getElementById('reportPreviewDialog').open);
       await page.locator('[data-close="reportPreviewDialog"]').click();
       await page.locator('[data-layer-id="chart"]').click();
@@ -152,7 +152,7 @@ async function main() {
       await page.evaluate(() => { window.queryFailure = false; });
       await page.evaluate(report => window.DBeaverECharts.loadReport(report), reflowReport);
       await page.locator('#reportZoom').selectOption(zoom);
-      await page.locator('#generateReport').click(); await page.locator('#runReportQueries').click();
+      await page.locator('#reportDataMenu > summary').click(); await page.locator('#generateReport').click(); await page.locator('#runReportQueries').click();
       await page.waitForFunction(() => document.getElementById('reportPreviewDialog').open);
       await page.locator('[data-close="reportPreviewDialog"]').click();
       const original = await doc(), baseline = modelLayouts(original), queries = await page.evaluate(() => window.queryCount);

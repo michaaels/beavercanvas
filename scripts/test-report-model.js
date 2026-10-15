@@ -6,7 +6,7 @@ const vm = require('node:vm');
 const window = {};
 const context = vm.createContext({ window, console, TextEncoder, btoa: text => Buffer.from(text, 'binary').toString('base64') });
 const web = path.resolve(__dirname, '../plugins/org.example.dbeaver.echarts/web');
-for (const file of ['dashboard-layout', 'report-model', 'report-execution', 'report-export']) vm.runInContext(fs.readFileSync(path.join(web, 'js', file + '.js'), 'utf8'), context);
+for (const file of ['geo-data', 'dashboard-layout', 'document-history', 'report-model', 'report-execution', 'report-export']) vm.runInContext(fs.readFileSync(path.join(web, 'js', file + '.js'), 'utf8'), context);
 const M = window.DBeaverReportModel, E = window.DBeaverReportExecution, X = window.DBeaverReportExport;
 const report = M.create('Indicadores de red');
 report.parameters.push({ name: 'start_date', label: 'Start date', type: 'date', default: '2026-10-01' });
@@ -14,6 +14,10 @@ const source = M.source({ id: 'daily', name: 'Daily', sql: 'SELECT fecha, total 
 report.sources.push(source);
 const chart = M.widget('chart'); chart.sourceId = source.id; chart.config.chart.xColumn = 'fecha'; chart.config.chart.yColumns = ['total']; report.widgets.push(chart);
 const clean = M.normalize({ ...report, snapshots: { daily: [[1]] }, password: 'secret' });
+const autoTable = M.widget('table'); assert.equal(autoTable.config.pageSize, 0);
+assert.equal(M.normalize({ ...report, widgets: [autoTable] }).widgets[0].config.pageSize, 0);
+autoTable.config.pageSize = 10;
+assert.equal(M.normalize({ ...report, widgets: [autoTable] }).widgets[0].config.pageSize, 10, 'Legacy fixed pagination is retained');
 assert.ok(!JSON.stringify(clean).includes('secret') && !('snapshots' in clean));
 assert.throws(() => M.normalize({ ...report, schemaVersion: 99 }), /Unsupported/);
 assert.throws(() => M.normalize({ ...report, sources: [source, source] }), /Duplicate/);
@@ -88,5 +92,7 @@ assert.throws(() => X.eml({ to: 'test@example.com\r\nBcc: stolen@example.com', c
 assert.throws(() => X.eml({ to: 'test@example.com', cc: '', subject: 'Daily\r\nBcc: stolen@example.com', message: '', html: '<body>Hello</body>', title: 'Daily' }), /line breaks/);
 const eml = X.eml({ to: 'test@example.com', cc: '', subject: 'Indicadores de conexión 🚀'.repeat(6), message: '<img src=x onerror=alert(1)>', html: '<body>Hello</body>', attachment: '<html>Offline</html>', title: 'Report' });
 assert.match(eml, /X-Unsent: 1\r\n/); assert.match(eml, /Content-Disposition: attachment/);
+const emptyRecipient = X.eml({ to: '', cc: '', subject: 'Draft', message: '', html: '<body>Draft</body>', title: 'Draft' });
+assert.match(emptyRecipient, /To: \r\n/); assert.match(emptyRecipient, /X-Unsent: 1/);
 assert.ok(eml.split('\r\n').filter(line => line.includes('=?UTF-8?')).every(line => line.length <= 78));
 console.log('Report model/execution/export OK: schema, sections, imports, bounded undo, typed values, approval invalidation, deduplication, four-query queue, empty/error/cancel, snapshot isolation and HTML/MIME escaping');

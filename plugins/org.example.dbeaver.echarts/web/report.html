@@ -11,23 +11,34 @@
         <label class="report-zoom">Zoom<select id="reportZoom"><option value="0.5">50%</option><option value="0.75">75%</option><option value="1" selected>100%</option><option value="1.25">125%</option></select></label>
       </div>
       <div class="report-actions">
-        <button id="newReport" type="button">New</button><button id="openReport" type="button">Open template</button><button id="saveReport" type="button" class="report-primary">Save</button>
+        <details class="report-action-menu" id="reportFileMenu"><summary>File</summary><div class="report-action-panel">
+          <button id="newReport" type="button">New report</button><button id="openReport" type="button">Open template…</button><button id="reportTemplates" type="button">Browse templates…</button>
+          <button id="duplicateReport" type="button">Duplicate template</button><button id="importReport" type="button">Import template…</button>
+        </div></details>
+        <button id="saveReport" type="button" class="report-primary" title="Save template (Ctrl+S)">Save</button>
+        <span class="command-divider" aria-hidden="true"></span>
         <button id="undoReport" type="button" title="Ctrl+Z">Undo</button><button id="redoReport" type="button" title="Ctrl+Y">Redo</button>
-        <button id="compactReport" type="button" title="Close vertical gaps while keeping columns and sizes. Supports Undo.">Close gaps</button>
-        <button id="reportData" type="button">Data</button><button id="reportParameters" type="button">Parameters</button>
-        <button id="refreshReport" type="button">Refresh data</button><button id="stopReport" type="button" hidden>Stop queries</button>
-        <button id="previewReport" type="button">Preview</button><button id="generateReport" type="button">Generate report</button>
-        <button id="exportReport" type="button">Export HTML</button><button id="outlookReport" type="button">Outlook draft</button>
-        <button id="reportTemplates" type="button">Templates</button>
+        <details class="report-action-menu" id="reportLayoutMenu"><summary>Layout</summary><div class="report-action-panel">
+          <button id="compactReport" type="button" title="Close vertical gaps while keeping columns and sizes. Supports Undo.">Close gaps</button>
+        </div></details>
+        <span class="command-divider" aria-hidden="true"></span>
+        <button id="refreshReport" type="button" title="Review SQL and update the data snapshot">Refresh data</button><button id="stopReport" type="button" hidden>Stop queries</button>
+        <button id="previewReport" type="button" title="View the layout with current data; does not run SQL">Preview layout</button>
+        <details class="report-action-menu" id="reportDataMenu"><summary>Data</summary><div class="report-action-panel">
+          <button id="reportData" type="button">Manage queries…</button><button id="reportParameters" type="button">Parameters…</button><button id="generateReport" type="button">Refresh and preview…</button>
+        </div></details>
+        <details class="report-action-menu" id="reportExportMenu"><summary>Export</summary><div class="report-action-panel">
+          <button id="exportReport" type="button">Export HTML or template…</button><button id="outlookReport" type="button">Email draft…</button>
+        </div></details>
       </div>
       <div id="reportStatus" role="status">Add a component to start designing your report.</div>
     </header>
     <div class="report-workspace">
       <aside class="report-library" aria-label="Component library"><h2>Components</h2><p>Click to append. Drag onto the sheet to choose a position. Select a section to add inside it.</p><div id="componentLibrary"></div>
-        <h2>Layers</h2><div id="reportLayers"></div><button id="duplicateReport" type="button">Duplicate template</button><button id="importReport" type="button">Import template</button>
+        <h2>Layers</h2><div id="reportLayers"></div>
       </aside>
       <section class="report-canvas-scroll" aria-label="Report design canvas"><div id="reportStage" class="report-stage"><div id="reportCanvas"></div></div>
-        <div id="reportEmpty" class="report-empty">Your report is empty.<br>Add a heading, then charts, KPIs and tables.</div>
+        <div id="reportEmpty" class="report-empty"><h2>Start your report</h2><p>Add a chart from SQL, build the layout with components, or reuse a saved template.</p><div class="report-empty-actions"><button id="reportStartChart" type="button" class="report-primary">Add a chart</button><button id="reportStartHeading" type="button">Add a heading</button><button id="reportStartTemplate" type="button">Browse templates</button></div></div>
       </section>
       <aside class="report-properties" aria-label="Component properties"><h2 id="propertiesHeading">Report properties</h2><div id="componentProperties"></div></aside>
     </div>
@@ -54,9 +65,10 @@
   </dialog>
   <dialog id="reportEmailDialog" class="report-dialog email" aria-labelledby="reportEmailHeading"><h2 id="reportEmailHeading">Compose Outlook draft</h2>
     <p>Creates an EML draft with inline chart images. The plugin does not send email. Editing the saved draft depends on your mail client.</p>
+    <p id="reportEmailError" class="report-data-error" role="alert"></p>
     <div class="report-email-content">
       <section class="report-email-fields" aria-label="Draft details">
-        <div class="report-form-grid"><label>To<input id="reportEmailTo" type="text" placeholder="name@example.com"></label><label>CC<input id="reportEmailCc" type="text"></label></div>
+        <div class="report-form-grid"><label>To (optional for a draft)<input id="reportEmailTo" type="text" placeholder="name@example.com"></label><label>CC<input id="reportEmailCc" type="text"></label></div>
         <label>Subject<input id="reportEmailSubject" maxlength="200"></label><label>Message<textarea id="reportEmailMessage" rows="3"></textarea></label>
         <label class="report-check"><input id="reportEmailAttach" type="checkbox" checked> Attach offline interactive HTML</label>
         <label class="report-check"><input id="reportEmailOpen" type="checkbox"> Open saved EML with the registered mail client</label>
@@ -66,7 +78,6 @@
         <iframe id="reportEmailPreview" title="Email report preview" sandbox="" referrerpolicy="no-referrer"></iframe>
       </section>
     </div>
-    <p id="reportEmailError" class="report-data-error" role="alert"></p>
     <footer><button id="saveReportEmail" type="button" class="report-primary">Save email draft</button><button data-close="reportEmailDialog" type="button">Cancel</button></footer>
   </dialog>
   <dialog id="reportTemplateDialog" class="report-dialog" aria-labelledby="reportTemplateHeading"><h2 id="reportTemplateHeading">Reusable templates</h2>
@@ -77,16 +88,39 @@
     <footer><button id="reportConfirmDiscard" type="button">Discard and continue</button><button data-close="reportConfirmDialog" type="button">Cancel</button></footer></dialog>
   <select id="chartType" hidden aria-label="Available charts"></select>
   <dialog id="widgetEditor" class="widget-editor" aria-labelledby="widgetEditorHeading">
-    <h2 id="widgetEditorHeading">Edit chart</h2><div class="widget-editor-fields"><label>Title<input id="widgetEditorName" maxlength="200"></label><label>Connection<select id="widgetEditorConnection"></select></label></div>
-    <label class="widget-editor-query">SQL for this chart<textarea id="widgetEditorSql" spellcheck="false" aria-label="Widget SQL"></textarea></label>
-    <div class="widget-editor-query-actions"><button id="widgetEditorRun" type="button">Run preview</button><button id="widgetEditorStop" type="button" disabled>Stop preview</button><span id="widgetEditorStatus" role="status"></span></div>
-    <p id="widgetEditorError" role="alert" hidden></p><div class="widget-editor-fields"><label>Chart<select id="widgetEditorType"></select></label><label>X / category<select id="widgetEditorCategory"></select></label>
-      <label>Refresh<select id="widgetEditorRefresh"><option value="manual:0">Manual</option></select></label></div>
-    <fieldset class="widget-editor-series"><legend>Y series and axes</legend><div id="widgetEditorSeries"></div></fieldset>
-    <div class="widget-editor-marks"><label><input id="widgetEditorMean" type="checkbox"> Mean line</label><label><input id="widgetEditorRange" type="checkbox"> Min/max area</label><label><input id="widgetEditorScale" type="checkbox"> Visual scale</label></div>
-    <div id="widgetEditorPreview" class="widget-editor-preview" aria-label="Chart preview"></div><div class="widget-editor-data"><table id="widgetEditorData" aria-label="Preview result rows"></table></div>
-    <div class="widget-editor-actions"><button id="widgetEditorSave" type="button">Apply chart</button><button id="widgetEditorCancel" type="button">Cancel</button></div>
+    <h2 id="widgetEditorHeading">Edit widget</h2>
+    <label class="widget-editor-title">Title<input id="widgetEditorName" type="text" maxlength="200"></label>
+    <label class="widget-auto-title"><input id="widgetEditorAutoTitle" type="checkbox"> Use selected fields as title</label>
+    <div class="widget-editor-steps" role="tablist" aria-label="Chart setup">
+      <button id="widgetEditorQueryTab" type="button" role="tab" aria-controls="widgetEditorQueryPanel" aria-selected="true" data-editor-step="query">1. Query</button>
+      <button id="widgetEditorDataTab" type="button" role="tab" aria-controls="widgetEditorDataPanel" aria-selected="false" tabindex="-1" data-editor-step="data">2. Data</button>
+      <button id="widgetEditorChartTab" type="button" role="tab" aria-controls="widgetEditorChartPanel" aria-selected="false" tabindex="-1" data-editor-step="chart">3. Chart</button>
+    </div>
+    <p id="widgetEditorStatus" role="status"></p><button id="widgetEditorStop" type="button" disabled hidden>Stop preview</button><p id="widgetEditorError" role="alert" hidden></p>
+    <section id="widgetEditorQueryPanel" role="tabpanel" aria-labelledby="widgetEditorQueryTab">
+      <p class="widget-editor-help">Choose a connection and run your SQL to see the returned data. Applying a chart keeps this query with it.</p>
+      <label>Connection<select id="widgetEditorConnection"></select></label>
+      <label class="widget-editor-query">SQL for this chart<textarea id="widgetEditorSql" spellcheck="false" aria-label="Widget SQL" placeholder="SELECT category, value FROM ..."></textarea></label>
+      <div class="widget-editor-query-actions"><button id="widgetEditorRun" type="button" class="primary-action">Run preview</button></div>
+    </section>
+    <section id="widgetEditorDataPanel" role="tabpanel" aria-labelledby="widgetEditorDataTab" hidden>
+      <h3>Returned data</h3><p id="widgetEditorDataHint" class="widget-editor-help">Run preview in Query to load columns and sample rows.</p>
+      <div class="widget-editor-data"><table id="widgetEditorData" aria-label="Preview result rows"></table></div>
+      <details class="widget-editor-data-query"><summary>SQL used for the displayed data</summary><pre id="widgetEditorDataSql"></pre></details>
+      <button id="widgetEditorChooseChart" type="button" class="primary-action">Choose a chart</button>
+    </section>
+    <section id="widgetEditorChartPanel" role="tabpanel" aria-labelledby="widgetEditorChartTab" hidden>
+      <div class="widget-editor-fields"><label>Chart<select id="widgetEditorType"></select></label><label>X / category<select id="widgetEditorCategory"></select></label></div>
+      <div id="widgetEditorMap" hidden></div>
+      <fieldset class="widget-editor-series"><legend>Values and axes</legend><div id="widgetEditorSeries"></div></fieldset>
+      <details class="widget-editor-advanced"><summary>Analysis and refresh</summary>
+        <div class="widget-editor-marks"><label><input id="widgetEditorMean" type="checkbox"> Mean line</label><label><input id="widgetEditorRange" type="checkbox"> Min/max area</label><label><input id="widgetEditorScale" type="checkbox"> Visual scale</label></div>
+        <label>Refresh<select id="widgetEditorRefresh"><option value="manual:0">Manual</option><option value="interval:30">Every 30 s</option><option value="interval:60">Every minute</option><option value="interval:300">Every 5 min</option></select></label>
+      </details>
+      <div id="widgetEditorPreview" class="widget-editor-preview" aria-label="Chart preview"></div>
+    </section>
+    <div class="widget-editor-actions"><button id="widgetEditorSave" type="button" class="primary-action">Apply widget</button><button id="widgetEditorCancel" type="button">Cancel</button></div>
   </dialog>
-  <script src="js/echarts.min.js"></script><script src="js/world-map.js"></script><script src="js/analytics.js"></script><script src="js/dashboard-layout.js"></script>
+  <script src="js/echarts.min.js"></script><script src="js/world-map.js"></script><script src="js/geo-data.js"></script><script src="js/analytics.js"></script><script src="js/map-fields.js"></script><script src="js/dashboard-layout.js"></script><script src="js/document-history.js"></script>
   <script src="js/widget-editor.js"></script><script src="js/report-model.js"></script><script src="js/report-widgets.js"></script><script src="js/report-execution.js"></script><script src="js/report-export.js"></script><script src="js/report-properties.js"></script><script src="js/report-designer.js"></script>
 </body></html>
