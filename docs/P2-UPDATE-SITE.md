@@ -6,11 +6,11 @@ to build the package, but is not needed to use it.
 ## Instalar en DBeaver
 
 Target de la beta: **DBeaver Community 26.2.2, Windows y Linux x86_64**.
-Instalador y checksum de BeaverCanvas: [**0.6.6-beta.1**](https://github.com/michaaels/beavercanvas/releases/tag/v0.6.6-beta.1).
+Instalador y checksum de BeaverCanvas: [**0.6.7-beta.1**](https://github.com/michaaels/beavercanvas/releases/tag/v0.6.7-beta.1).
 Los paquetes anteriores están en [GitHub Releases](https://github.com/michaaels/beavercanvas/releases).
 El [release histórico 0.6.0](https://github.com/michaaels/beavercanvas/releases/tag/v0.6.0-beta.1)
 conserva el nombre DBeaver ECharts y su ZIP `dbeaver-echarts-*.zip`; usa sus etiquetas
-anteriores si instalas esa versión. Los pasos siguientes describen BeaverCanvas 0.6.6.
+anteriores si instalas esa versión. Los pasos siguientes describen BeaverCanvas 0.6.7.
 
 1. Abre **Help / Ayuda → Install New Software / Instalar nuevo software**.
 2. Pulsa **Add / Añadir → Archive / Archivo** y selecciona `beavercanvas-<version>.zip`.
@@ -19,7 +19,9 @@ anteriores si instalas esa versión. Los pasos siguientes describen BeaverCanvas
 4. Acepta la licencia. Este paquete de prueba no está firmado; si DBeaver muestra
    la pantalla de confianza, autoriza el contenido del paquete local generado.
 5. Termina la instalación y reinicia DBeaver cuando lo solicite.
-6. Ejecuta un `SELECT` y abre la pestaña **BeaverCanvas** del resultado. Para un dashboard
+6. Abre el icono **BeaverCanvas** de la barra derecha para crear un dashboard o abre su
+   menú para iniciar Report Designer sin consultar una tabla. También puedes ejecutar
+   un `SELECT` y abrir la pestaña **BeaverCanvas** del resultado. Para un dashboard
    guardado, abre `*.echarts-dashboard.json` desde el proyecto. Cada widget permite
    editar su consulta y conexión con **Edit**.
 7. Abre **Window → Show View → Other → BeaverCanvas → Report Designer**
