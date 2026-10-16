@@ -10,7 +10,7 @@
     { id: 'horizontalBar', label: 'Horizontal bar', group: 'Comparison', hint: 'Compare categories with long names. Category labels appear on the vertical axis.' },
     { id: 'stackedBar', label: 'Stacked bar', group: 'Comparison', hint: 'Compare parts of a total by category. Use series with the same units; all series share one axis.', singleAxis: true },
     { id: 'radar', label: 'Radar', group: 'Comparison', hint: 'Compare categories across several numeric measures.' },
-    { id: 'pie', label: 'Pie / ring', group: 'Composition', hint: 'Show category proportions using the first selected numeric series.' },
+      { id: 'pie', label: 'Pie / ring', group: 'Composition', singleValue: true, hint: 'Choose one numeric value to compare category proportions. A pie has no left or right axes.' },
     { id: 'treemap', label: 'Treemap', group: 'Composition', hint: 'Show category proportions as rectangles using the first selected series.' },
     { id: 'funnel', label: 'Funnel', group: 'Composition', hint: 'Compare stages using the first selected numeric series.' },
     { id: 'scatter', label: 'Scatter', group: 'Distribution', hint: 'Compare numeric X and Y values to find relationships.' },
@@ -246,6 +246,7 @@
     const yIndex = yIndices[0];
     const option = baseOption(context);
     option.tooltip.trigger = 'item';
+      option.tooltip.valueFormatter = value => new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(value);
     option.legend = { type: 'scroll', bottom: 5, textStyle: { color: theme.foreground } };
     option.series = [{
       name: columns[yIndex].name,
@@ -404,7 +405,8 @@
     return option;
   }
 
-  function buildOption(context) {
+  function buildBaseOption(context) {
+    if (context.chartType === 'pie' && context.yIndices.length > 1) context = { ...context, yIndices: context.yIndices.slice(0, 1) };
     if (context.chartType === 'map') return buildMap(context);
     if (context.xIndex < 0 || !context.columns[context.xIndex] || !context.yIndices.length) throw new Error('Choose a category and numeric series.');
     if (CARTESIAN_TYPES.has(context.chartType)) return buildCartesian(context);
@@ -418,15 +420,56 @@
     throw new Error(`Unsupported chart type: ${context.chartType}`);
   }
 
+  function normalizeViewport(input) {
+    const result = {};
+    if (!input || typeof input !== 'object') return result;
+    if (Array.isArray(input.dataZoom)) result.dataZoom = input.dataZoom.slice(0, 4).map(item => {
+      const view = {};
+      if (!item || typeof item !== 'object') return view;
+      for (const key of ['start', 'end']) if (typeof item[key] === 'number' && Number.isFinite(item[key])) view[key] = Math.min(100, Math.max(0, item[key]));
+      for (const key of ['startValue', 'endValue']) if (typeof item[key] === 'number' && Number.isFinite(item[key])
+        || typeof item[key] === 'string' && item[key].length <= 200) view[key] = item[key];
+      if (view.start > view.end) [view.start, view.end] = [view.end, view.start];
+      return view;
+    });
+    if (input.geo && typeof input.geo === 'object') {
+      const geo = {};
+      if (typeof input.geo.zoom === 'number' && Number.isFinite(input.geo.zoom)) geo.zoom = Math.min(128, Math.max(0.1, input.geo.zoom));
+      const center = input.geo.center;
+      if (Array.isArray(center) && center.length === 2 && center.every(value => typeof value === 'number' && Number.isFinite(value))
+        && Math.abs(center[0]) <= 180 && Math.abs(center[1]) <= 90) geo.center = [...center];
+      if (Object.keys(geo).length) result.geo = geo;
+    }
+    return result;
+  }
+  function viewportOf(chart) {
+    const option = chart.getOption();
+    return normalizeViewport({ dataZoom: option.dataZoom, geo: option.geo?.[0] });
+  }
+  function watchViewport(chart, changed) {
+    const listener = () => changed(viewportOf(chart));
+    chart.on('datazoom', listener); chart.on('georoam', listener);
+    chart.on('restore', () => changed({}));
+  }
+  function buildOption(context) {
+    const option = buildBaseOption(context), view = normalizeViewport(context.viewport);
+    if (view.dataZoom && Array.isArray(option.dataZoom)) option.dataZoom.forEach((zoom, index) => Object.assign(zoom, view.dataZoom[index] || view.dataZoom[0] || {}));
+    if (view.geo && option.geo) Object.assign(option.geo, view.geo);
+    if (Array.isArray(context.colors) && context.colors.length) option.color = context.colors;
+    if (option.legend) option.legend.show = context.legend !== false;
+    return option;
+  }
+
   const hasRenderableData = option => Array.isArray(option?.series)
     && option.series.some(series => Array.isArray(series.data) && series.data.length > 0);
 
   function chartTitle(config) {
     if (config.chartType === 'map' && config.map) return `${config.map.value || 'Locations'} by ${config.map.label || 'location'}`.slice(0, 200);
-    const names = (config.yColumns || []).join(', ');
+    const names = (config.chartType === 'pie' ? (config.yColumns || []).slice(0, 1) : (config.yColumns || [])).join(', ');
     return (names ? `${names}${config.xColumn && config.chartType !== 'gauge' ? ` by ${config.xColumn}` : ''}` : 'Chart').slice(0, 200);
   }
-  window.DBeaverEChartsAnalytics = Object.freeze({ buildOption, chartTitle, displayValue, hasRenderableData, toNumber, CHART_TYPES, populateTypes });
+  window.DBeaverEChartsAnalytics = Object.freeze({ buildOption, chartTitle, displayValue, hasRenderableData, toNumber, CHART_TYPES, populateTypes,
+    normalizeViewport, viewportOf, watchViewport });
   if (typeof document !== 'undefined') {
     const select = document.getElementById('chartType'); if (select) populateTypes(select);
   }

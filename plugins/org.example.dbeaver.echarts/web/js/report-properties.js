@@ -88,18 +88,13 @@
     if (item.type === 'image') section(root, 'Image').append(button('Choose local image', hooks.pickImage),
       field('Alternative text', item.config.alt, 'text', value => update((widget, value) => { widget.config.alt = value; }, value, 'alt', true)));
     if (item.type === 'date') root.append(field('Label before date', item.config.prefix, 'text', value => update((widget, value) => { widget.config.prefix = value; }, value, 'prefix', true)));
-    if (['chart', 'kpi', 'table'].includes(item.type)) {
+    if (['kpi', 'table'].includes(item.type)) {
       const data = section(root, 'Data');
       data.append(field('Query', item.sourceId, 'select', value => update((widget, value) => { widget.sourceId = value; }, value), [['', 'Choose a query'], ...report.sources.map(source => [source.id, source.name])]),
         button('Configure queries', hooks.showData), button('Refresh this query', () => hooks.refreshSource(item.sourceId)));
     }
     const snapshot = snapshots[item.sourceId], names = snapshot?.columns.map(column => [column.name, column.name]) || [];
     const config = (name, value, textEdit = false) => update((widget, value) => { widget.config[name] = value; }, value, textEdit ? name : null, textEdit);
-    if (item.type === 'chart') {
-      const body = section(root, 'Chart'); body.append(button('Configure chart and preview SQL', hooks.editChart),
-        field('Show legend', item.config.chart.legend, 'checkbox', value => update((widget, value) => { widget.config.chart.legend = value; }, value)),
-        field('Series colors (hex, comma separated)', item.config.chart.colors.join(', '), 'text', value => update((widget, value) => { widget.config.chart.colors = value.split(',').map(value => value.trim()); }, value, 'chart.colors', true)));
-    }
     if (item.type === 'kpi') {
       const body = section(root, 'Indicator');
       body.append(field('Value column', item.config.column, 'select', value => config('column', value), [['', 'Choose a column'], ...names]),

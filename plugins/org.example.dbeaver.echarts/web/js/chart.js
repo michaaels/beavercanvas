@@ -18,6 +18,7 @@
     renderer: 'canvas',
     chartType: 'line',
     map: null,
+    viewport: {},
     xIndex: -1,
     yIndex: -1,
     yIndices: [],
@@ -199,8 +200,11 @@
 
     els.chartType.addEventListener('change', () => updateConfiguration(() => {
       state.chartType = els.chartType.value;
+      state.viewport = {};
+      if (state.chartType === 'pie') { state.yIndices = state.yIndices.slice(0, 1); state.yIndex = state.yIndices[0] ?? -1; syncPreferredSeries(); }
     }));
     els.xField.addEventListener('change', () => updateConfiguration(() => {
+      state.viewport = {};
       state.xIndex = Number(els.xField.value);
       state.preferredXName = selectedColumnName(state.xIndex);
     }));
@@ -304,6 +308,7 @@
       if (rendererChanged) recreateChart();
     }
     state.map = configuration.map ? window.DBeaverGeoData.normalize(configuration.map) : null;
+    state.viewport = window.DBeaverEChartsAnalytics.normalizeViewport(configuration.viewport);
     state.configurationLoaded = true;
     state.preferredXName = typeof configuration.xColumn === 'string' ? configuration.xColumn : null;
     state.preferredYNames = Array.isArray(configuration.yColumns)
@@ -439,16 +444,19 @@
     if (!els.seriesOptions) return;
     els.seriesOptions.replaceChildren();
     const columns = state.snapshot?.columns || [];
+    const singleValue = state.chartType === 'pie';
+    if (singleValue && state.yIndices.length > 1) { state.yIndices = state.yIndices.slice(0, 1); state.yIndex = state.yIndices[0]; syncPreferredSeries(); }
     columns.forEach((column, index) => {
       if (column.kind !== 'NUMERIC' || index === state.xIndex) return;
       const row = document.createElement('div');
       row.className = 'series-option';
       const label = document.createElement('label');
       const checkbox = document.createElement('input');
-      checkbox.type = 'checkbox';
+      checkbox.type = singleValue ? 'radio' : 'checkbox';
+      if (singleValue) checkbox.name = 'resultPieValue';
       checkbox.checked = state.yIndices.includes(index);
       checkbox.addEventListener('change', () => updateConfiguration(() => {
-        state.yIndices = checkbox.checked
+        state.yIndices = singleValue ? [index] : checkbox.checked
           ? [...state.yIndices, index].filter((value, position, values) => values.indexOf(value) === position)
           : state.yIndices.filter(value => value !== index);
         state.yIndex = state.yIndices[0] ?? -1;
@@ -460,6 +468,7 @@
       label.append(checkbox, name);
 
       const axis = document.createElement('select');
+      axis.hidden = singleValue;
       axis.disabled = !checkbox.checked;
       axis.append(new Option('Left', 'left'), new Option('Right', 'right'));
       axis.value = state.yAxes[index] || 'left';
@@ -566,6 +575,7 @@
         yAxes: state.yAxes,
         chartType: state.chartType,
         map: state.map,
+        viewport: state.viewport,
         marks: state.marks,
         theme: state.theme
       });
@@ -676,9 +686,9 @@
     });
   }
 
-  function dashboardChanged() {
+  function dashboardChanged(options = {}) {
     dashboardHistory.record(state.dashboard); historyControls();
-    render();
+    if (!options.viewport) render();
     schedulePersistConfiguration();
   }
 
@@ -686,6 +696,7 @@
     return {
       chartType: state.chartType,
       ...(state.map ? { map: state.map } : {}),
+      viewport: state.viewport,
       xColumn: selectedColumnName(state.xIndex) || state.preferredXName,
       yColumn: selectedColumnName(state.yIndex),
       yColumns: selectedYNames(),
@@ -942,7 +953,10 @@
   }
 
   function ensureChart() {
-    if (!state.chart) state.chart = window.echarts.init(els.chart, null, { renderer: state.renderer });
+    if (!state.chart) {
+      state.chart = window.echarts.init(els.chart, null, { renderer: state.renderer });
+      window.DBeaverEChartsAnalytics.watchViewport(state.chart, view => { state.viewport = view; schedulePersistConfiguration(); });
+    }
     return state.chart;
   }
 

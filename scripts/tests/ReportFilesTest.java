@@ -26,6 +26,10 @@ public final class ReportFilesTest {
                  "label":"zona","value":"ventas","details":["region","costos"],"password":"secret"}
                 """).getAsJsonObject();
             chart.getAsJsonObject("config").getAsJsonObject("chart").add("map", map);
+            chart.getAsJsonObject("config").getAsJsonObject("chart").add("viewport", JsonParser.parseString("""
+                {"dataZoom":[{"start":55,"end":90,"password":"secret"}],
+                 "geo":{"zoom":4,"center":[-78.4,-0.18],"password":"secret"},"password":"secret"}
+                """));
             Path file = folder.resolve("red.echarts-report.json");
             ReportFiles.write(file, report.toString());
             String saved = ReportFiles.read(file), sql = Files.readString(DocumentFiles.sqlPath(file));
@@ -33,6 +37,10 @@ public final class ReportFilesTest {
             JsonObject savedMap = JsonParser.parseString(saved).getAsJsonObject().getAsJsonArray("widgets").get(0).getAsJsonObject()
                 .getAsJsonObject("config").getAsJsonObject("chart").getAsJsonObject("map");
             check(savedMap.get("location").getAsString().equals("geo") && savedMap.getAsJsonArray("details").size() == 2, "Map fields lost on native save/reopen");
+            JsonObject savedView = JsonParser.parseString(saved).getAsJsonObject().getAsJsonArray("widgets").get(0).getAsJsonObject()
+                .getAsJsonObject("config").getAsJsonObject("chart").getAsJsonObject("viewport");
+            check(savedView.getAsJsonArray("dataZoom").get(0).getAsJsonObject().get("start").getAsInt() == 55
+                && savedView.getAsJsonObject("geo").get("zoom").getAsInt() == 4, "Chart/map viewport lost on native save/reopen");
             map.addProperty("mode", "projected"); fail(() -> ReportFiles.parse(report.toString())); map.addProperty("mode", "geo");
             map.addProperty("location", "x".repeat(201)); fail(() -> ReportFiles.parse(report.toString())); map.addProperty("location", "geo");
             check(sql.contains("SELECT 'niño' AS zona, :date AS fecha;"), "Exact Unicode SQL lost");

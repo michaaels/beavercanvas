@@ -55,7 +55,8 @@
     if (config.chartType !== 'map' && (xIndex < 0 || !yIndices.length)) throw new Error('Choose a category and numeric series in Chart properties.');
     const option = window.DBeaverEChartsAnalytics.buildOption({ rows: snapshot.rows, columns, rowCount: snapshot.rows.length, xIndex, yIndices,
       yAxes: Object.fromEntries(yIndices.map(index => [index, config.yAxes[columns[index].name] || 'left'])),
-      chartType: config.chartType, map: config.map, marks: config.marks, theme: { ...THEME, background: widget.style.background === 'transparent' ? '#ffffff' : widget.style.background }, dashboard: true });
+        chartType: config.chartType, map: config.map, marks: config.marks, viewport: config.viewport,
+        theme: { ...THEME, background: widget.style.background === 'transparent' ? '#ffffff' : widget.style.background }, dashboard: true });
     option.animation = false;
     if (config.colors?.length) option.color = config.colors;
     if (option.legend) option.legend.show = config.legend !== false;
@@ -111,6 +112,7 @@
     try { chart.setOption(chartOption(widget, snapshot), { notMerge: true }); }
     catch (error) { chart.dispose(); target.replaceChildren(node('p', error.message, 'report-placeholder')); return; }
     context.charts?.set(widget.id, chart);
+      if (context.onViewport) window.DBeaverEChartsAnalytics.watchViewport(chart, view => context.onViewport(widget.id, view));
     const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(() => chart.resize()) : null;
     observer?.observe(target);
     return () => { observer?.disconnect(); chart.dispose(); context.charts?.delete(widget.id); };

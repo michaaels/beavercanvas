@@ -1,25 +1,15 @@
 package org.example.dbeaver.echarts;
 
 import com.google.gson.JsonParser;
-import java.lang.reflect.Proxy;
-import java.util.concurrent.atomic.AtomicBoolean;
-import org.eclipse.ui.keys.IBindingService;
 
-/** No workbench or JDBC required: key-filter ownership and transient preview boundary. */
+/** No workbench or JDBC required: focused command scope and transient preview boundary. */
 public final class EditingWorkflowTest {
     public static void main(String[] args) {
-        AtomicBoolean enabled = new AtomicBoolean(true);
-        IBindingService service = (IBindingService) Proxy.newProxyInstance(IBindingService.class.getClassLoader(), new Class<?>[] { IBindingService.class },
-            (proxy, method, arguments) -> {
-                if (method.getName().equals("isKeyFilterEnabled")) return enabled.get();
-                if (method.getName().equals("setKeyFilterEnabled")) enabled.set((Boolean) arguments[0]);
-                return null;
-            });
-        BrowserKeyBindings a = new BrowserKeyBindings(service), b = new BrowserKeyBindings(service);
-        a.acquire(); check(!enabled.get(), "Host commands still intercept focused browser keys");
-        b.acquire(); a.release(); check(!enabled.get(), "Old browser restored another browser's lease");
-        b.release(); check(enabled.get(), "Workbench filter was not restored");
-        enabled.set(false); a.acquire(); a.release(); check(!enabled.get(), "An already disabled host filter was enabled");
+        Object browser = new Object(), nativeEditor = new Object();
+        check(BrowserKeyBindings.ownsFocus(browser, browser), "Focused browser command was excluded");
+        check(!BrowserKeyBindings.ownsFocus(nativeEditor, browser), "Native editor command was captured");
+        check(!BrowserKeyBindings.ownsFocus(null, browser), "Absent focus activated browser commands");
+        check(!BrowserKeyBindings.ownsFocus(null, null), "Disposed browser activated commands");
         String report = """
             {"widgets":[{"id":"chart","sourceId":"query-1"}]}
             """;
@@ -34,7 +24,7 @@ public final class EditingWorkflowTest {
         fail(() -> ReportPreviewData.fromDashboard(report, data.replace("[[\"Quito\"]]", "[[{}]]")));
         fail(() -> ReportPreviewData.fromDashboard(report, " ".repeat(16 * 1024 * 1024 + 1)));
         check(ReportPreviewData.fromDashboard(report, "{}").equals("{}"), "Missing runtime should stay empty");
-        System.out.println("Editing workflow OK: key-filter handoff/restore, transient result routing, authority stripping and bounded preview validation");
+        System.out.println("Editing workflow OK: browser-only command scope, transient result routing, authority stripping and bounded preview validation");
     }
     private static void fail(Runnable action) { try { action.run(); } catch (IllegalArgumentException | IllegalStateException expected) { return; } throw new AssertionError("Invalid preview accepted"); }
     private static void check(boolean condition, String message) { if (!condition) throw new AssertionError(message); }

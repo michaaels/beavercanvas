@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -117,7 +118,45 @@ final class ReportFiles {
             if (!input.get("map").isJsonObject()) throw new IllegalArgumentException("Invalid map configuration.");
             chart.add("map", normalizeMap(input.getAsJsonObject("map")));
         }
+        if (input.has("viewport")) chart.add("viewport", normalizeViewport(object(input, "viewport")));
         return chart;
+    }
+
+    private static JsonObject normalizeViewport(JsonObject input) {
+        JsonObject view = new JsonObject();
+        if (input.has("dataZoom") && input.get("dataZoom").isJsonArray()) {
+            var zooms = new com.google.gson.JsonArray();
+            for (JsonElement element : input.getAsJsonArray("dataZoom")) {
+                if (zooms.size() >= 4) break;
+                if (!element.isJsonObject()) continue;
+                JsonObject zoom = new JsonObject();
+                for (String key : new String[] { "start", "end", "startValue", "endValue" }) {
+                    JsonElement value = element.getAsJsonObject().get(key);
+                    if (value == null || !value.isJsonPrimitive()) continue;
+                    var primitive = value.getAsJsonPrimitive();
+                    if (primitive.isNumber() && Double.isFinite(primitive.getAsDouble())) {
+                        double number = primitive.getAsDouble();
+                        zoom.addProperty(key, key.equals("start") || key.equals("end") ? Math.max(0, Math.min(100, number)) : number);
+                    } else if (primitive.isString() && key.endsWith("Value") && primitive.getAsString().length() <= 200) zoom.add(key, value.deepCopy());
+                }
+                zooms.add(zoom);
+            }
+            view.add("dataZoom", zooms);
+        }
+        JsonObject inputGeo = object(input, "geo"), geo = new JsonObject();
+        JsonElement zoom = inputGeo.get("zoom");
+        if (zoom != null && zoom.isJsonPrimitive() && zoom.getAsJsonPrimitive().isNumber() && Double.isFinite(zoom.getAsDouble()))
+            geo.addProperty("zoom", Math.max(0.1, Math.min(128, zoom.getAsDouble())));
+        JsonElement center = inputGeo.get("center");
+        if (center != null && center.isJsonArray() && center.getAsJsonArray().size() == 2) {
+            boolean valid = true; int index = 0;
+            for (JsonElement value : center.getAsJsonArray()) {
+                valid &= value.isJsonPrimitive() && value.getAsJsonPrimitive().isNumber() && Double.isFinite(value.getAsDouble()) && Math.abs(value.getAsDouble()) <= (index++ == 0 ? 180 : 90);
+            }
+            if (valid) geo.add("center", center.deepCopy());
+        }
+        if (!geo.isEmpty()) view.add("geo", geo);
+        return view;
     }
 
     private static JsonObject normalizeMap(JsonObject input) {

@@ -2,9 +2,10 @@
 
 ## Atajos dentro de BeaverCanvas
 
-El navegador embebido toma los atajos mientras tiene el foco. Eclipse vuelve a
-recibirlos cuando el foco sale del navegador o se cierra el control. Así se evita
-que Ctrl+V se envíe al editor SQL nativo mientras se edita **1. Query**.
+Los comandos de edición se limitan al navegador que tiene el foco mediante el
+servicio de foco de Eclipse. Así se evita que Ctrl+V se envíe al editor SQL nativo
+mientras se edita **1. Query**, sin desactivar el filtro global de teclas.
+Fuera de BeaverCanvas, DBeaver conserva sus comandos y selección nativos.
 
 - **Ctrl+Z** deshace cambios aplicados, movimientos y tamaños.
 - **Ctrl+Y** o **Ctrl+Shift+Z** rehacen lo deshecho.
@@ -12,9 +13,9 @@ que Ctrl+V se envíe al editor SQL nativo mientras se edita **1. Query**.
   campo. Al seleccionar un gráfico o su asa, los atajos actúan sobre el documento.
 - Dashboard y Report Designer muestran botones **Undo** y **Redo**.
 
-La integración usa el [servicio de teclas de Eclipse](https://help.eclipse.org/latest/topic/org.eclipse.platform.doc.isv/reference/api/org/eclipse/ui/keys/IBindingService.html),
-con propietario y restauración del estado previo. No cambia las preferencias de
-teclado del usuario. Los historiales son temporales, acotados a 80 estados y un
+La integración usa [IFocusService](https://help.eclipse.org/latest/topic/org.eclipse.platform.doc.isv/reference/api/org/eclipse/ui/swt/IFocusService.html)
+y comandos con una expresión de foco para ese control. No cambia las preferencias
+de teclado del usuario. Los historiales son temporales, acotados a 80 estados y un
 presupuesto de 24 MiB; no se escriben en la plantilla.
 
 ## Títulos que siguen los campos

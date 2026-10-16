@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.6.7 beta — 2026-10-16
+
+- Replace global Eclipse key-filter suppression with browser-scoped editing
+  commands and tracked focus. Native editor shortcuts remain under DBeaver control.
+- Add a BeaverCanvas launcher to the right workbench trim with new/open dashboard
+  and Report Designer actions. New dashboards no longer need an initial SQL result.
+- Put chart configuration and query refresh on each report component; reuse saved
+  queries and keep legend/colors inside the Query / Data / Chart editor.
+- Edit paragraphs/headings directly and click blank sheet space then type to add
+  a paragraph, with document undo/redo and plain-text persistence/export.
+- Keep adjacent resize handles from intercepting the selected component's move
+  handle, and retain the active drag gesture while crossing other charts.
+- Persist date/category zoom and map zoom/center through edits, save/reopen,
+  dashboard conversion, preview and HTML/email rendering.
+- Give pie charts one explicit value, hide meaningless axes and format numeric
+  tooltips without floating-point display artifacts.
+- Add version-tag release automation, Windows/Linux gates, verified artifact
+  publication and a manual dry-run mode without overwriting published releases.
+
 ## 0.6.6 beta — 2026-10-15
 
 - Route focused SWT browser shortcuts to BeaverCanvas and restore the workbench

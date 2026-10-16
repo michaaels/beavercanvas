@@ -108,8 +108,8 @@ async function main() {
     await page.locator('[data-close="reportDataDialog"]').click();
     const sourceId = (await document()).sources[0].id;
     await page.locator('[data-component-type="chart"]').click();
-    await properties.getByLabel('Query', { exact: true }).selectOption(sourceId);
-    await properties.getByRole('button', { name: 'Configure chart and preview SQL' }).click();
+    await page.getByRole('button', { name: 'Configure chart and preview SQL' }).click();
+    await page.getByLabel('Saved query', { exact: true }).selectOption(sourceId);
     await page.locator('#widgetEditorRun').click();
     await page.waitForFunction(() => document.querySelector('#widgetEditorStatus').textContent.includes('16 rows'));
     await page.locator('#widgetEditorChooseChart').click();

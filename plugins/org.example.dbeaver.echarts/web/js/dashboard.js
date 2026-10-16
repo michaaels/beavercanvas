@@ -40,6 +40,7 @@
         xColumn: chartConfiguration.xColumn || null,
         yColumns,
         ...(chartConfiguration.map ? { map: window.DBeaverGeoData.normalize(chartConfiguration.map) } : {}),
+        ...(chartConfiguration.viewport ? { viewport: window.DBeaverEChartsAnalytics.normalizeViewport(chartConfiguration.viewport) } : {}),
         yAxes: chartConfiguration.yAxes || {},
         marks: chartConfiguration.marks || {}
       },
@@ -112,6 +113,8 @@
         xColumn: typeof chart.xColumn === 'string' ? chart.xColumn : null,
         yColumns: Array.isArray(chart.yColumns) ? chart.yColumns.filter(name => typeof name === 'string').slice(0, 12) : [],
         ...(chart.map ? { map: window.DBeaverGeoData.normalize(chart.map) } : {}),
+        ...(chart.viewport ? { viewport: window.DBeaverEChartsAnalytics.normalizeViewport(chart.viewport) } : {}),
+        colors: (Array.isArray(chart.colors) ? chart.colors : []).filter(value => /^#[\da-f]{6}$/i.test(value)).slice(0, 12), legend: chart.legend !== false,
         yAxes: normalizeDictionary(chart.yAxes),
         marks: normalizeDictionary(chart.marks)
       },
@@ -456,6 +459,10 @@
       resizeObservers.set(widget.id, observer);
     }
     chart.setOption(option, { notMerge: true, lazyUpdate: false });
+    window.DBeaverEChartsAnalytics.watchViewport(chart, view => {
+      widget.chart.viewport = view;
+      onChange({ viewport: true });
+    });
     if (widget.drillDown.enabled) {
       chart.on('click', event => {
         const map = widget.chart.chartType === 'map' ? window.DBeaverGeoData.infer(widget.chart, snapshot.columns) : null;
@@ -491,6 +498,7 @@
       yAxes,
       chartType: widget.chart.chartType,
       map: widget.chart.map,
+      viewport: widget.chart.viewport, colors: widget.chart.colors, legend: widget.chart.legend,
       dashboard: true,
       marks: widget.chart.marks,
       theme
