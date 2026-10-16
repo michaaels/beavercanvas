@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BeaverCanvas · Dashboards SQL y Report Designer para DBeaver</title>
+  <meta name="description" content="Convierte tus consultas SQL en dashboards, mapas y reportes visuales dentro de DBeaver Desktop. Exporta HTML interactivo y borradores de correo con BeaverCanvas.">
+  <meta name="theme-color" content="#102E4C">
+  <link rel="canonical" href="https://michaaels.github.io/beavercanvas/">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="BeaverCanvas — SQL Dashboards & Report Designer">
+  <meta property="og:description" content="De una consulta SQL a un dashboard o reporte. Dentro de DBeaver Desktop.">
+  <meta property="og:url" content="https://michaaels.github.io/beavercanvas/">
+  <meta property="og:image" content="https://michaaels.github.io/beavercanvas/assets/dashboard.png">
+  <meta property="og:locale" content="es_EC">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="assets/beavercanvas-32.png" type="image/png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="skip" href="#contenido">Saltar al contenido</a>
+  <header class="site-header wrap">
+    <a class="brand" href="./" aria-label="BeaverCanvas, inicio"><img src="assets/beavercanvas-64.png" width="48" height="48" alt=""><span>BeaverCanvas<small>SQL Dashboards &amp; Report Designer</small></span></a>
+    <nav aria-label="Navegación principal"><a href="#funciones">Funciones</a><a href="#instalar">Instalar</a><a href="https://github.com/michaaels/beavercanvas">GitHub <span aria-hidden="true">↗</span></a></nav>
+  </header>
+  <main id="contenido">
+    <section class="hero wrap" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <h1 id="hero-title">Tus consultas.<br>Tus dashboards.<br>Dentro de DBeaver.</h1>
+        <p>Transforma resultados SQL en gráficos, mapas y reportes visuales, desde el entorno donde ya trabajas.</p>
+        <div class="actions"><a class="button primary" href="https://github.com/michaaels/beavercanvas/releases/download/v0.6.6-beta.1/beavercanvas-0.6.6.v20261015125723_a176641f.zip">Descargar plugin</a><a class="text-link" href="#instalar">Cómo instalarlo</a></div>
+        <p class="release-note">Beta 0.6.6 · Código abierto · Windows y Linux</p>
+      </div>
+      <figure class="hero-product"><a href="assets/dashboard.png" aria-label="Ampliar captura del dashboard"><img src="assets/dashboard.png" width="1440" height="1000" alt="Dashboard de BeaverCanvas en DBeaver con gráficos de ventas y un mapa de ubicaciones" fetchpriority="high"></a><figcaption>Un dashboard. Varias consultas. Una vista de tus datos.</figcaption></figure>
+    </section>
+    <section class="workflow-band" aria-label="Flujo de trabajo"><div class="wrap"><p><strong>Consulta</strong> con SQL</p><span aria-hidden="true">/</span><p><strong>Diseña</strong> con tus resultados</p><span aria-hidden="true">/</span><p><strong>Comparte</strong> el reporte</p></div></section>
+    <section class="feature wrap" id="funciones" aria-labelledby="dashboard-title">
+      <div class="feature-copy"><h2 id="dashboard-title">Cada gráfico, su propia consulta.</h2><p>Combina indicadores de distintas consultas en un dashboard. Edita el SQL de cada widget, elige sus campos y ajusta el espacio arrastrando sus bordes.</p><ul><li>Gráficos de líneas, barras, dispersión, sectores y más.</li><li>Mapas con latitud y longitud, coordenadas o puntos GeoJSON/WKT.</li><li>Filtros compartidos, actualización y títulos automáticos.</li></ul><a class="text-link" href="https://github.com/michaaels/beavercanvas/blob/main/docs/MAP-CHARTS.md">Ver cómo configurar un mapa</a></div>
+      <figure class="detail-product"><a href="assets/map-widget-editor.png" aria-label="Ampliar configuración del mapa"><img src="assets/map-widget-editor.png" width="1280" height="1000" alt="Editor de mapas con selectores de ubicación, medida, etiquetas y campos adicionales" loading="lazy"></a><figcaption>Selecciona la ubicación y los campos que acompañan a cada punto.</figcaption></figure>
+    </section>
+    <section class="report-section" aria-labelledby="report-title"><div class="feature wrap report-feature">
+      <figure class="report-product"><a href="assets/designer-workflow.png" aria-label="Ampliar captura de Report Designer"><img src="assets/designer-workflow.png" width="1800" height="1100" alt="Report Designer con gráficos ya poblados y propiedades para ajustar la hoja en vivo" loading="lazy"></a><figcaption>Del dashboard a la hoja, con los datos que ya estás visualizando.</figcaption></figure>
+      <div class="feature-copy"><h2 id="report-title">Dale forma al reporte, sin empezar de nuevo.</h2><p>Abre tus gráficos del dashboard en Report Designer. Añade texto, tablas SQL, imágenes e indicadores y organiza la hoja con una previa del movimiento.</p><ul><li>Ancho, márgenes y tamaños con ajuste en vivo.</li><li>Deshacer y rehacer cambios de diseño.</li><li>Plantillas que guardan el SQL y la distribución.</li></ul><a class="text-link" href="https://github.com/michaaels/beavercanvas/blob/main/docs/EDITING-WORKFLOW.md">Explorar la edición y los atajos</a></div>
+    </div></section>
+    <section class="sharing wrap" aria-labelledby="sharing-title"><img src="assets/beavercanvas-256.png" width="156" height="156" alt="" loading="lazy"><div><h2 id="sharing-title">El resultado también puede salir de DBeaver.</h2><p>Exporta un HTML interactivo que se abre sin conexión o guarda un borrador EML con los gráficos como imágenes. Las exportaciones compartibles omiten el SQL y las referencias de conexión.</p><p class="small">El borrador se guarda como archivo; BeaverCanvas no envía el correo.</p></div></section>
+    <section class="install-section" id="instalar" aria-labelledby="install-title"><div class="wrap">
+      <div class="install-intro"><div><h2 id="install-title">Pruébalo en tu DBeaver.</h2><p>Beta 0.6.6. Probada en DBeaver Community 26.2.2, Windows y Linux x86_64.</p></div><a class="button primary" href="https://github.com/michaaels/beavercanvas/releases/download/v0.6.6-beta.1/beavercanvas-0.6.6.v20261015125723_a176641f.zip">Descargar ZIP</a></div>
+      <ol class="install-steps"><li><h3>Descarga el plugin</h3><p>Guarda el ZIP de BeaverCanvas de la versión publicada, sin descomprimirlo.</p></li><li><h3>Añade el archivo</h3><p>En DBeaver, abre <strong>Help → Install New Software → Add → Archive</strong> y selecciona el ZIP.</p></li><li><h3>Instala y reinicia</h3><p>Selecciona <strong>BeaverCanvas Plugin for DBeaver Desktop</strong>. Completa el asistente y reinicia DBeaver.</p></li></ol>
+      <p class="small">Para empezar, ejecuta un <strong>SELECT</strong> y abre la pestaña <strong>BeaverCanvas</strong> del resultado. Desde tu dashboard puedes abrir <strong>Report Designer</strong>.</p>
+      <details><summary>Antes de instalar la beta</summary><p>El plugin todavía no tiene firma digital. Revisa los avisos del instalador y descarga siempre desde este repositorio. macOS y la visualización en cada cliente de correo aún no están certificados. Las plantillas conservan las consultas; abrirlas no autoriza su ejecución.</p></details>
+      <div class="resource-links"><a href="https://github.com/michaaels/beavercanvas/releases/tag/v0.6.6-beta.1">Cambios y SHA-256</a><a href="https://github.com/michaaels/beavercanvas/blob/main/README.md">Documentación</a><a href="https://github.com/michaaels/beavercanvas/issues">Reportar un problema</a></div>
+    </div></section>
+  </main>
+  <footer class="wrap site-footer"><div><strong>BeaverCanvas</strong><p>Un proyecto independiente para DBeaver Desktop.</p></div><p><a href="https://github.com/michaaels/beavercanvas/blob/main/LICENSE">Apache License 2.0</a><br>Basado en Apache ECharts. Sin afiliación oficial con DBeaver ni Apache.</p></footer>
+</body>
+</html>
