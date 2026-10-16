@@ -6,6 +6,8 @@
 
 *Turn SQL into visuals. Stay in DBeaver.*
 
+[Sitio del proyecto y guía rápida de instalación](https://michaaels.github.io/beavercanvas/)
+
 Plugin independiente para **DBeaver Desktop Community**: convierte resultados SQL en gráficos,
 dashboards y reportes visuales con Apache ECharts. Eclipse se necesita para desarrollar,
 pero **no para instalar y utilizar el plugin**.
