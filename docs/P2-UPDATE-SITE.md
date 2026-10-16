@@ -6,11 +6,11 @@ to build the package, but is not needed to use it.
 ## Instalar en DBeaver
 
 Target de la beta: **DBeaver Community 26.2.2, Windows y Linux x86_64**.
-Instalador y checksum de BeaverCanvas: [**0.6.1-beta.1**](https://github.com/michaaels/beavercanvas/releases/tag/v0.6.1-beta.1).
+Instalador y checksum de BeaverCanvas: [**0.6.6-beta.1**](https://github.com/michaaels/beavercanvas/releases/tag/v0.6.6-beta.1).
 Los paquetes anteriores están en [GitHub Releases](https://github.com/michaaels/beavercanvas/releases).
 El [release histórico 0.6.0](https://github.com/michaaels/beavercanvas/releases/tag/v0.6.0-beta.1)
 conserva el nombre DBeaver ECharts y su ZIP `dbeaver-echarts-*.zip`; usa sus etiquetas
-anteriores si instalas esa versión. Los pasos siguientes describen BeaverCanvas 0.6.1.
+anteriores si instalas esa versión. Los pasos siguientes describen BeaverCanvas 0.6.6.
 
 1. Abre **Help / Ayuda → Install New Software / Instalar nuevo software**.
 2. Pulsa **Add / Añadir → Archive / Archivo** y selecciona `beavercanvas-<version>.zip`.
@@ -102,6 +102,11 @@ node scripts/test-plugin-registry.js "D:/apps/dbeaver" --installed
 ```
 
 ## GitHub Actions packages
+
+El flujo **Release plugin** reutiliza este proceso para publicar automáticamente
+el ZIP verificado cuando se envía una etiqueta de versión. Consulta
+[Releases automáticos](AUTOMATIC-RELEASES.md) para etiquetas, ejecución manual,
+modo de prueba y recuperación sin sobrescribir versiones publicadas.
 
 `.github/workflows/p2-package.yml` runs on PRs, pushes to `main` and manual dispatch.
 It uses a Windows 2022 runner and Java 21, downloads the fixed DBeaver 26.2.2

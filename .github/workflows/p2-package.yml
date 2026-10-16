@@ -5,18 +5,31 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      source_commit:
+        description: Exact source commit selected by the release workflow
+        required: false
+        type: string
+        default: ''
+    outputs:
+      installer_artifact:
+        description: Installer tested on Windows and Linux in this run
+        value: ${{ jobs.windows-package.outputs.installer_artifact }}
 
 permissions:
   contents: read
 
 concurrency:
-  group: p2-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: p2-${{ github.workflow }}-${{ github.ref }}-${{ inputs.source_commit || 'branch' }}
+  cancel-in-progress: ${{ inputs.source_commit == '' }}
 
 jobs:
   windows-package:
     runs-on: windows-2022
     timeout-minutes: 30
+    outputs:
+      installer_artifact: beavercanvas-p2-windows-${{ inputs.source_commit || github.sha }}
     defaults:
       run:
         shell: pwsh
@@ -25,6 +38,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+          ref: ${{ inputs.source_commit || github.sha }}
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
@@ -42,6 +56,9 @@ jobs:
           Copy-Item -LiteralPath dev/ci/browser/package.json,dev/ci/browser/package-lock.json -Destination .dev/browser-tests
           npm ci --prefix .dev/browser-tests --ignore-scripts --no-audit --no-fund
           if ($LASTEXITCODE -ne 0) { throw 'Test dependency installation failed' }
+      - name: Validate release automation contracts
+        run: python scripts/test-release.py
+        if: inputs.source_commit == ''
       - name: Validate sources, query controls and chart geometry
         run: |
           ./scripts/validate.ps1 -DBeaverPlugins .dev/ci-target/dbeaver/dbeaver/plugins
@@ -93,7 +110,7 @@ jobs:
       - name: Upload verified installer
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: beavercanvas-p2-windows-${{ github.sha }}
+          name: beavercanvas-p2-windows-${{ inputs.source_commit || github.sha }}
           path: |
             dist/*.zip
             dist/*.sha256
@@ -123,12 +140,13 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
+          ref: ${{ inputs.source_commit || github.sha }}
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: beavercanvas-p2-windows-${{ github.sha }}
+          name: beavercanvas-p2-windows-${{ inputs.source_commit || github.sha }}
           path: .dev/linux-installer
       - name: Prepare Linux DBeaver and browser dependencies
         run: |
@@ -157,7 +175,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: beavercanvas-linux-tests-${{ github.sha }}
+          name: beavercanvas-linux-tests-${{ inputs.source_commit || github.sha }}
           include-hidden-files: true
           path: |
             .dev/linux-tests.log
