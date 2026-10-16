@@ -41,6 +41,10 @@ agrupadas y configuración de gráficos por etapas; incluye capturas del desarro
 
 ## Funcionalidades en imágenes
 
+Las [mejoras de edición directa](docs/REPORT-AUTHORING-UX.md) incluyen texto sobre
+la hoja, configuración/actualización en cada gráfico, pastel de valor único y
+conservación del zoom de gráficos y mapas.
+
 Capturas del frontend local de BeaverCanvas con datos de ejemplo, tomadas durante
 las pruebas de interacción. La [captura nativa de la beta 0.6.0 en Linux](docs/screenshots/report-designer-linux.png)
 se conserva como evidencia histórica de DBeaver; todavía muestra el nombre anterior.

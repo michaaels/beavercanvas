@@ -32,12 +32,44 @@
     hint.setAttribute('role', 'status'); elements.Type.closest('.widget-editor-fields').after(hint);
     elements.Type.setAttribute('aria-describedby', hint.id);
     elements.Hint = hint;
+      const sourceLabel = document.createElement('label'), sourceChoice = document.createElement('select');
+      sourceLabel.append(document.createTextNode('Saved query'), sourceChoice); sourceChoice.setAttribute('aria-label', 'Saved query');
+      elements.Connection.closest('label').before(sourceLabel); elements.SourceChoice = sourceChoice; elements.SourceLabel = sourceLabel;
+      sourceChoice.addEventListener('change', () => {
+        const chosen = session.sources.find(source => source.id === sourceChoice.value); if (!chosen) return;
+        cancelPreview(); session.draft.source = JSON.parse(JSON.stringify(chosen)); session.draft.source.kind = 'savedQuery';
+        session.data = session.hooks.snapshotForSource?.(chosen.id) || null; session.dataBinding = session.data ? signature(chosen) : null;
+        session.dataSql = session.data ? chosen.sql : ''; session.previewApproved = false; elements.Sql.value = chosen.sql;
+        const index = session.connections.findIndex(connection => connection.project === chosen.project && connection.connectionId === chosen.connectionId);
+        if (index >= 0) elements.Connection.value = String(index);
+        else {
+          if (!elements.Connection.querySelector('option[value="retained"]')) elements.Connection.append(new Option('', 'retained'));
+          elements.Connection.querySelector('option[value="retained"]').textContent = `${chosen.project || 'Project'} / ${chosen.connection || chosen.connectionId || 'Choose connection'}`;
+          elements.Connection.value = chosen.connectionId || chosen.connection ? 'retained' : '';
+        }
+        showError(null); renderFields(); renderData(); renderPreview();
+        setStatus(session.data ? 'Using the saved query result. Run preview to execute again.' : 'Run preview to load the saved query.');
+      });
+      const appearance = document.createElement('fieldset'), legend = document.createElement('legend');
+      legend.textContent = 'Appearance'; appearance.append(legend);
+      const legendLabel = document.createElement('label'), showLegend = document.createElement('input');
+      showLegend.type = 'checkbox'; showLegend.setAttribute('aria-label', 'Show legend');
+      legendLabel.append(showLegend, document.createTextNode(' Show legend'));
+      const colorsLabel = document.createElement('label'), colors = document.createElement('input');
+      colors.type = 'text'; colors.setAttribute('aria-label', 'Series colors (hex, comma separated)');
+      colorsLabel.append(document.createTextNode('Series colors (hex, comma separated)'), colors);
+      appearance.append(legendLabel, colorsLabel);
+      elements.dialog.querySelector('.widget-editor-advanced').append(appearance);
+      elements.Legend = showLegend; elements.Colors = colors;
+      showLegend.addEventListener('change', () => { session.draft.chart.legend = showLegend.checked; renderPreview(); });
+      colors.addEventListener('input', () => { session.draft.chart.colors = colors.value.split(',').map(value => value.trim()).filter(value => /^#[\da-f]{6}$/i.test(value)).slice(0, 12); renderPreview(); });
     elements.Name.addEventListener('input', () => { session.draft.title = elements.Name.value.slice(0, 200); session.draft.titleMode = 'custom'; elements.AutoTitle.checked = false; updateSave(); });
     elements.AutoTitle.addEventListener('change', () => { session.draft.titleMode = elements.AutoTitle.checked ? 'auto' : 'custom'; renderPreview(); });
     elements.Sql.addEventListener('input', sourceChanged);
     elements.Connection.addEventListener('change', sourceChanged);
-    elements.Type.addEventListener('change', () => { session.draft.chart.chartType = elements.Type.value; renderFields(); renderPreview(); });
+      elements.Type.addEventListener('change', () => { session.draft.chart.chartType = elements.Type.value; delete session.draft.chart.viewport; renderFields(); renderPreview(); });
     elements.Category.addEventListener('change', () => {
+        delete session.draft.chart.viewport;
       session.draft.chart.xColumn = elements.Category.value;
       session.draft.chart.yColumns = session.draft.chart.yColumns.filter(name => name !== elements.Category.value);
       renderFields();
@@ -64,7 +96,7 @@
     });
   }
 
-  function open({ widget, snapshot, isNew, theme, renderer, componentName = 'widget', ...hooks }) {
+    function open({ widget, snapshot, isNew, theme, renderer, componentName = 'widget', sources = [], ...hooks }) {
     init();
     close();
     const draft = JSON.parse(JSON.stringify(widget));
@@ -72,7 +104,11 @@
     draft.chart.marks ||= {};
     if (draft.refreshPolicy.mode !== 'interval') draft.refreshPolicy = { mode: 'manual', intervalSeconds: 0 };
     session = { draft, data: snapshot || null, dataBinding: snapshot ? signature(draft.source) : null, dataSql: snapshot ? draft.source.sql : '',
-      previewApproved: false, previewId: null, loading: false, step: 'query', theme, renderer, hooks };
+        previewApproved: false, previewId: null, loading: false, step: 'query', theme, renderer, hooks, sources };
+      elements.SourceLabel.hidden = !sources.length;
+      elements.SourceChoice.replaceChildren(new Option('Use this chart query', ''));
+      sources.forEach(source => elements.SourceChoice.append(new Option(source.name, source.id)));
+      elements.SourceChoice.value = draft.source.id || '';
     elements.Heading.textContent = `${isNew ? 'Add' : 'Edit'} ${componentName}`;
     elements.Save.textContent = `Apply ${componentName}`;
     draft.titleMode ||= isNew || ['Chart', (draft.chart.yColumns || []).join(', '), window.DBeaverEChartsAnalytics.chartTitle(draft.chart)].includes(draft.title) ? 'auto' : 'custom';
@@ -90,6 +126,8 @@
     elements.Mean.checked = Boolean(draft.chart.marks.markLine);
     elements.Range.checked = Boolean(draft.chart.marks.markArea);
     elements.Scale.checked = Boolean(draft.chart.marks.visualMap);
+      elements.Legend.checked = draft.chart.legend !== false;
+      elements.Colors.value = (draft.chart.colors || []).join(', ');
     elements.Connection.replaceChildren(new Option('Choose connection', ''));
     let connections = [];
     try { connections = JSON.parse(window.dbeaverListConnections?.() || '[]'); }
@@ -226,6 +264,11 @@
     elements.dialog.querySelector('.widget-editor-advanced summary').textContent = isMap ? 'Refresh' : 'Analysis and refresh';
     const isGauge = config.chartType === 'gauge';
     const definition = window.DBeaverEChartsAnalytics.CHART_TYPES.find(type => type.id === config.chartType);
+      const singleValue = definition?.singleValue === true;
+      elements.dialog.querySelector('.widget-editor-advanced summary').textContent = isMap || singleValue ? 'Refresh and appearance' : 'Analysis, refresh and appearance';
+      elements.Series.closest('fieldset').querySelector('legend').textContent = singleValue ? 'Value' : 'Values and axes';
+      elements.dialog.querySelector('.widget-editor-marks').hidden = isMap || singleValue;
+      if (singleValue) config.yColumns = config.yColumns.slice(0, 1);
     elements.Hint.textContent = definition?.hint || '';
     const columns = session.data?.columns || [
       ...(config.xColumn ? [{ name: config.xColumn, kind: 'STRING' }] : []),
@@ -256,7 +299,8 @@
       row.className = 'series-option';
       const label = document.createElement('label');
       const check = document.createElement('input');
-      check.type = 'checkbox';
+        check.type = singleValue ? 'radio' : 'checkbox';
+        if (singleValue) check.name = 'widgetEditorValue';
       check.checked = config.yColumns.includes(column.name);
       check.setAttribute('aria-label', `Series ${column.name}`);
       const name = document.createElement('span');
@@ -264,11 +308,13 @@
       label.append(check, name);
       const axis = document.createElement('select');
       axis.setAttribute('aria-label', `Axis ${column.name}`);
+        axis.hidden = singleValue;
       axis.append(new Option('Left', 'left'), new Option('Right', 'right'));
       axis.value = definition?.singleAxis ? 'left' : config.yAxes[column.name] || 'left';
       axis.disabled = !check.checked || definition?.singleAxis;
       axis.title = definition?.singleAxis ? 'Stacked series share one axis.' : '';
       check.addEventListener('change', () => {
+          if (singleValue) { config.yColumns = [column.name]; renderPreview(); return; }
         if (check.checked && config.yColumns.length >= 12) {
           check.checked = false; showError('A chart supports up to 12 series.'); return;
         }
@@ -344,7 +390,7 @@
     try {
       const option = window.DBeaverEChartsAnalytics.buildOption({ rows: session.data.rows, columns, rowCount: session.data.rows.length,
         xIndex, yIndices, yAxes: Object.fromEntries(yIndices.map(index => [index, config.yAxes[columns[index].name] || 'left'])),
-        chartType: config.chartType, map: config.map, marks: config.marks, theme: session.theme });
+        chartType: config.chartType, map: config.map, marks: config.marks, colors: config.colors, legend: config.legend, viewport: config.viewport, theme: session.theme });
       if (session.step !== 'chart') return;
       chart = window.echarts.init(elements.Preview, null, { renderer: session.renderer });
       chart.setOption(option, { notMerge: true, lazyUpdate: false });

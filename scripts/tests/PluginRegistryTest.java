@@ -95,6 +95,21 @@ public final class PluginRegistryTest {
             }
             if (!editor || !handler) throw new AssertionError("Dashboard editor or resource handler extension could not be instantiated");
             if (reports && (!reportEditor || !reportHandler || !reportView)) throw new AssertionError("Report view/editor/handler missing");
+            if (plugin.getVersion().compareTo(new org.osgi.framework.Version("0.6.7")) >= 0) {
+                plugin.loadClass("org.example.dbeaver.echarts.BeaverCanvasLauncher").getConstructor().newInstance();
+                boolean rightToolbar = false;
+                Object[] menus = (Object[]) call(registry, "getConfigurationElementsFor", new Class<?>[] { String.class }, "org.eclipse.ui.menus");
+                for (Object contribution : menus) {
+                    String uri = (String) call(contribution, "getAttribute", new Class<?>[] { String.class }, "locationURI");
+                    if ("toolbar:org.eclipse.ui.trim.vertical2?after=additions".equals(uri)) {
+                        for (Object child : (Object[]) call(contribution, "getChildren", new Class<?>[0])) {
+                            rightToolbar |= "org.example.dbeaver.echarts.launcher.toolbar".equals(call(child, "getAttribute", new Class<?>[] { String.class }, "id"));
+                        }
+                    }
+                }
+                if (!rightToolbar || plugin.getEntry("web/js/report-inline-edit.js") == null) throw new AssertionError("BeaverCanvas right toolbar or inline editor was not installed");
+                System.out.println("BeaverCanvas launcher registry OK: right trim toolbar and command handler registered without a query");
+            }
             System.out.println("Equinox registry tests OK: bundle resolved, JSON recognized, editor and navigator handler registered");
         } finally {
             EclipseStarter.shutdown();

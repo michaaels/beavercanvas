@@ -125,17 +125,17 @@ public final class NativeBrowserStartupTest implements BundleActivator {
         Class<?> keys = plugin.loadClass("org.example.dbeaver.echarts.BrowserKeyBindings");
         var constructor = keys.getDeclaredConstructors()[0]; constructor.setAccessible(true);
         Class<?> serviceType = constructor.getParameterTypes()[0];
-        AtomicBoolean enabled = new AtomicBoolean(true);
+        var commands = new java.util.HashMap<String, Object[]>();
         Object service = java.lang.reflect.Proxy.newProxyInstance(serviceType.getClassLoader(), new Class<?>[] { serviceType }, (proxy, method, arguments) -> {
-            if (method.getName().equals("isKeyFilterEnabled")) return enabled.get();
-            if (method.getName().equals("setKeyFilterEnabled")) enabled.set((Boolean) arguments[0]);
+            if (method.getName().equals("activateHandler")) commands.put((String) arguments[0], arguments);
             return null;
         });
         Object lease = constructor.newInstance(service); Method attach = keys.getDeclaredMethod("attach", Browser.class); attach.setAccessible(true); attach.invoke(lease, browser);
-        browser.notifyListeners(SWT.FocusIn, new org.eclipse.swt.widgets.Event());
-        if (enabled.get()) throw new AssertionError("Focused SWT Browser still has host key interception");
-        browser.notifyListeners(SWT.FocusOut, new org.eclipse.swt.widgets.Event());
-        if (!enabled.get()) throw new AssertionError("Blur did not restore workbench shortcuts");
+        if (!commands.keySet().containsAll(java.util.Set.of("org.eclipse.ui.edit.copy", "org.eclipse.ui.edit.paste", "org.eclipse.ui.edit.cut", "org.eclipse.ui.edit.selectAll")))
+            throw new AssertionError("Browser edit commands are missing");
+        Method ownsFocus = keys.getDeclaredMethod("ownsFocus", Object.class, Object.class); ownsFocus.setAccessible(true);
+        if (!Boolean.TRUE.equals(ownsFocus.invoke(null, browser, browser)) || Boolean.TRUE.equals(ownsFocus.invoke(null, browser.getParent(), browser)))
+            throw new AssertionError("Browser edit scope includes a native control");
         Method load = presentationType.getDeclaredMethod("loadReport", String.class, String.class); load.setAccessible(true);
         String report = """
             {"format":"dbeaver-echarts-report","schemaVersion":1,"sources":[{"id":"q","sql":"SELECT city, sales FROM demo"}],
@@ -149,7 +149,67 @@ public final class NativeBrowserStartupTest implements BundleActivator {
         waitFor(display, () -> Boolean.TRUE.equals(browser.evaluate("return document.querySelectorAll('.report-chart canvas').length===1 && document.getElementById('reportStatus').textContent.includes('Dashboard data ready');")), "transient preview load");
         String saved = (String) browser.evaluate("return JSON.stringify(window.DBeaverECharts.reportDocument());");
         if (saved.contains("\"rows\"")) throw new AssertionError("Transient rows entered the template");
-        System.out.println("Native editing workflow OK: SWT focus routes/restores key filter; transferred preview renders without SQL and stays outside template; workbench service simulated");
+        testBrowserEditing(display, browser, commands);
+        System.out.println("Native editing workflow OK: focused browser commands registered without global key-filter changes; transferred preview renders without SQL and stays outside template; workbench service simulated");
+    }
+
+    private void testBrowserEditing(Display display, Browser browser, Map<String, Object[]> commands) throws Exception {
+        browser.getShell().open();
+        while (display.readAndDispatch()) { }
+        var nativeShell = new Shell(display); nativeShell.setLayout(new org.eclipse.swt.layout.FillLayout()); nativeShell.setSize(400, 150);
+        var nativeEditor = new org.eclipse.swt.custom.StyledText(nativeShell, SWT.MULTI);
+        nativeEditor.setText("one two"); nativeShell.open(); nativeShell.forceActive(); nativeEditor.setFocus();
+        try {
+            nativeEditor.setCaretOffset(7); nativeEditor.invokeAction(org.eclipse.swt.custom.ST.SELECT_WORD_PREVIOUS);
+            if (!nativeEditor.getSelectionText().equals("two")) throw new AssertionError("Native word selection stopped working");
+            for (Object[] registration : commands.values()) {
+                Method enabled = registration[1].getClass().getMethod("isEnabled"); enabled.setAccessible(true);
+                if (Boolean.TRUE.equals(enabled.invoke(registration[1]))) throw new AssertionError("Native editor focus activated a browser command");
+                Object expression = registration[2]; Method evaluate = java.util.Arrays.stream(expression.getClass().getMethods()).filter(method -> method.getName().equals("evaluate")).findFirst().orElseThrow();
+                evaluate.setAccessible(true); Class<?> contextType = evaluate.getParameterTypes()[0];
+                Object context = java.lang.reflect.Proxy.newProxyInstance(contextType.getClassLoader(), new Class<?>[] { contextType },
+                    (proxy, method, arguments) -> method.getName().equals("getVariable") ? nativeEditor : null);
+                if (!evaluate.invoke(expression, context).toString().equals("false")) throw new AssertionError("Scoped expression captured native editor focus");
+            }
+        } finally { nativeShell.dispose(); }
+        browser.getShell().forceActive(); browser.setFocus();
+        var clipboard = new org.eclipse.swt.dnd.Clipboard(display);
+        Object original = clipboard.getContents(org.eclipse.swt.dnd.TextTransfer.getInstance());
+        boolean canRestore = original instanceof String || clipboard.getAvailableTypes().length == 0;
+        try {
+            if (!canRestore) {
+                System.out.println("Native clipboard check skipped to preserve a non-text desktop clipboard; native selection and command isolation passed");
+                return;
+            }
+            clipboard.setContents(new Object[] { "SELECT city" }, new org.eclipse.swt.dnd.Transfer[] { org.eclipse.swt.dnd.TextTransfer.getInstance() });
+            browser.execute("{const e=document.createElement('textarea');e.id='nativeEditingProbe';e.style.cssText='position:fixed;top:0;left:0;z-index:99999';e.value='old SQL';document.body.append(e);e.focus();e.select();}");
+            waitFor(display, () -> Boolean.TRUE.equals(browser.evaluate("return document.activeElement?.id==='nativeEditingProbe';")), "native browser text focus");
+            System.out.println("Native editing focus: browser=" + browser.isFocusControl() + ", control=" + display.getFocusControl());
+            Method pasteEnabled = commands.get("org.eclipse.ui.edit.paste")[1].getClass().getMethod("isEnabled"); pasteEnabled.setAccessible(true);
+            if (!Boolean.TRUE.equals(pasteEnabled.invoke(commands.get("org.eclipse.ui.edit.paste")[1]))) throw new AssertionError("Browser command disabled with a focused DOM editor");
+            invokeEdit(commands.get("org.eclipse.ui.edit.paste")[1]);
+            waitFor(display, () -> Boolean.TRUE.equals(browser.evaluate("return document.getElementById('nativeEditingProbe').value==='SELECT city';")), "native paste command");
+            browser.execute("document.getElementById('nativeEditingProbe').setSelectionRange(0,6);");
+            invokeEdit(commands.get("org.eclipse.ui.edit.copy")[1]);
+            if (!"SELECT".equals(clipboard.getContents(org.eclipse.swt.dnd.TextTransfer.getInstance()))) throw new AssertionError("Browser copy did not reach the clipboard");
+            invokeEdit(commands.get("org.eclipse.ui.edit.cut")[1]);
+            waitFor(display, () -> Boolean.TRUE.equals(browser.evaluate("return document.getElementById('nativeEditingProbe').value===' city';")), "native cut command");
+            invokeEdit(commands.get("org.eclipse.ui.edit.paste")[1]);
+            waitFor(display, () -> Boolean.TRUE.equals(browser.evaluate("return document.getElementById('nativeEditingProbe').value==='SELECT city';")), "native paste after cut");
+            System.out.println("Native clipboard OK: real SWT clipboard copy/cut/paste; native word selection and focused command expressions stay independent");
+        } finally {
+            if (canRestore) {
+                if (original instanceof String text) clipboard.setContents(new Object[] { text }, new org.eclipse.swt.dnd.Transfer[] { org.eclipse.swt.dnd.TextTransfer.getInstance() });
+                else clipboard.clearContents();
+            }
+            clipboard.dispose();
+            if (!browser.isDisposed()) browser.execute("document.getElementById('nativeEditingProbe')?.remove();");
+        }
+    }
+
+    private static void invokeEdit(Object handler) throws Exception {
+        Method execute = java.util.Arrays.stream(handler.getClass().getMethods()).filter(method -> method.getName().equals("execute")).findFirst().orElseThrow();
+        execute.setAccessible(true); execute.invoke(handler, new Object[] { null });
     }
 
     private Object create(Shell shell) throws Exception {

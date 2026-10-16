@@ -9,7 +9,7 @@ bash scripts/validate.sh
 
 for engine in ${ECHARTS_TEST_BROWSERS:-chromium webkit}; do
   export ECHARTS_TEST_BROWSER="$engine"
-  for suite in chart-labels chart-catalog map-editor designer-workflow dashboard-browser dashboard-resize report-designer report-table-export report-interactions; do
+  for suite in chart-labels chart-catalog map-editor designer-workflow dashboard-browser dashboard-resize report-designer report-table-export report-interactions report-authoring-ux; do
     node "scripts/test-$suite.js"
   done
   python3 scripts/test-report-eml.py

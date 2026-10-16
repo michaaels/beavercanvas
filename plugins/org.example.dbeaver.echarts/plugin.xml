@@ -1,6 +1,35 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?eclipse version="3.4"?>
 <plugin>
+   <extension point="org.eclipse.ui.commands">
+      <command id="org.example.dbeaver.echarts.launcher" name="BeaverCanvas" description="Create dashboards and reports without running an SQL query">
+         <commandParameter id="org.example.dbeaver.echarts.launcher.mode" name="Open" optional="true"/>
+      </command>
+   </extension>
+   <extension point="org.eclipse.ui.handlers">
+      <handler commandId="org.example.dbeaver.echarts.launcher" class="org.example.dbeaver.echarts.BeaverCanvasLauncher"/>
+   </extension>
+   <extension point="org.eclipse.ui.menus">
+      <menuContribution locationURI="toolbar:org.eclipse.ui.trim.vertical2?after=additions">
+         <toolbar id="org.example.dbeaver.echarts.launcher.toolbar" label="BeaverCanvas">
+            <command commandId="org.example.dbeaver.echarts.launcher" id="org.example.dbeaver.echarts.launcher.menu"
+                  label="BeaverCanvas" tooltip="BeaverCanvas dashboards and reports" icon="web/assets/beavercanvas-24.png" style="pulldown"/>
+         </toolbar>
+      </menuContribution>
+      <menuContribution locationURI="menu:org.example.dbeaver.echarts.launcher.menu">
+         <command commandId="org.example.dbeaver.echarts.launcher" label="New dashboard" icon="web/assets/beavercanvas-16.png"/>
+         <command commandId="org.example.dbeaver.echarts.launcher" label="Open dashboard…"><parameter name="org.example.dbeaver.echarts.launcher.mode" value="openDashboard"/></command>
+         <separator name="reports" visible="true"/>
+         <command commandId="org.example.dbeaver.echarts.launcher" label="Report Designer"><parameter name="org.example.dbeaver.echarts.launcher.mode" value="report"/></command>
+         <command commandId="org.example.dbeaver.echarts.launcher" label="Open report…"><parameter name="org.example.dbeaver.echarts.launcher.mode" value="openReport"/></command>
+      </menuContribution>
+      <menuContribution locationURI="menu:window?before=additions">
+         <menu id="org.example.dbeaver.echarts.window.menu" label="BeaverCanvas" icon="web/assets/beavercanvas-16.png">
+            <command commandId="org.example.dbeaver.echarts.launcher" label="New dashboard"/>
+            <command commandId="org.example.dbeaver.echarts.launcher" label="Report Designer"><parameter name="org.example.dbeaver.echarts.launcher.mode" value="report"/></command>
+         </menu>
+      </menuContribution>
+   </extension>
    <extension point="org.eclipse.core.contenttype.contentTypes">
       <content-type id="org.example.dbeaver.echarts.report" name="BeaverCanvas report template"
             base-type="org.eclipse.core.runtime.text" file-extensions="json" priority="high" default-charset="UTF-8"

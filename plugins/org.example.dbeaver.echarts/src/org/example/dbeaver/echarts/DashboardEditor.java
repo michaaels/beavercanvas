@@ -6,6 +6,12 @@ import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.swt.layout.FillLayout;
+import org.eclipse.swt.SWT;
+import org.eclipse.swt.widgets.FileDialog;
+import org.eclipse.jface.resource.ImageDescriptor;
+import org.eclipse.ui.IPersistableElement;
+import org.eclipse.ui.ide.FileStoreEditorInput;
+import org.eclipse.core.filesystem.EFS;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.ui.IEditorInput;
 import org.eclipse.ui.IEditorSite;
@@ -32,11 +38,25 @@ public final class DashboardEditor extends EditorPart {
     private String diskText;
     private boolean dirty;
 
+    static final class NewInput implements IEditorInput {
+        @Override public boolean exists() { return false; }
+        @Override public ImageDescriptor getImageDescriptor() { return null; }
+        @Override public String getName() { return "Untitled dashboard"; }
+        @Override public IPersistableElement getPersistable() { return null; }
+        @Override public String getToolTipText() { return "New BeaverCanvas dashboard"; }
+        @Override public <T> T getAdapter(Class<T> adapter) { return null; }
+    }
+
     @Override
     public void init(IEditorSite site, IEditorInput input) throws PartInitException {
         setSite(site);
         setInput(input);
         try {
+            if (input instanceof NewInput) {
+                project = DBWorkbench.getPlatform().getWorkspace().getActiveProject();
+                document = "{\"format\":\"dbeaver-echarts-dashboard\",\"schemaVersion\":1,\"title\":\"Untitled dashboard\",\"widgets\":[],\"filters\":{},\"variables\":{}}";
+                savedDocument = null; dirty = true; setPartName(input.getName()); return;
+            }
             if (input instanceof IFileEditorInput workspaceInput) {
                 file = Path.of(workspaceInput.getFile().getLocationURI());
                 project = DBPPlatformDesktop.getInstance().getWorkspace().getProject(workspaceInput.getFile().getProject());
@@ -74,16 +94,35 @@ public final class DashboardEditor extends EditorPart {
     }
 
     private String saveDocument(String text) {
+        return saveDocument(text, false);
+    }
+
+    private String saveDocument(String text, boolean saveAs) {
         try {
+            Path target = file;
+            if (target == null || saveAs) {
+                FileDialog dialog = new FileDialog(getSite().getShell(), SWT.SAVE);
+                dialog.setText("Save BeaverCanvas dashboard (JSON and SQL)");
+                dialog.setFilterExtensions(new String[] { "*.echarts-dashboard.json" }); dialog.setOverwrite(true);
+                dialog.setFileName(file == null ? "Untitled dashboard" + DashboardFiles.SUFFIX : file.getFileName().toString());
+                if (project != null) {
+                    Path folder = project.getAbsolutePath().resolve("Dashboards/ECharts"); Files.createDirectories(folder);
+                    dialog.setFilterPath(folder.toString());
+                }
+                String selected = dialog.open(); if (selected == null) return null;
+                target = Path.of(selected);
+            }
             // Avoid silently overwriting concurrent edits made in another editor/tool.
-            if (!Files.exists(file) || !Files.readString(file, StandardCharsets.UTF_8).equals(diskText)) {
+            if (target.equals(file) && (!Files.exists(file) || !Files.readString(file, StandardCharsets.UTF_8).equals(diskText))) {
                 throw new IllegalStateException("The dashboard changed on disk. Reopen it before saving.");
             }
-            DashboardFiles.write(file, text);
+            DashboardFiles.write(target, text); file = target;
             document = DashboardFiles.read(file);
             savedDocument = document;
             diskText = Files.readString(file, StandardCharsets.UTF_8);
             setDirty(false);
+            setInput(new FileStoreEditorInput(EFS.getLocalFileSystem().getStore(file.toUri())));
+            setPartName(file.getFileName().toString());
             if (project != null) project.refreshProject();
             for (IFile resource : ResourcesPlugin.getWorkspace().getRoot().findFilesForLocationURI(file.toUri())) {
                 resource.getParent().refreshLocal(IResource.DEPTH_ONE, null);
@@ -106,10 +145,13 @@ public final class DashboardEditor extends EditorPart {
     }
 
     @Override
-    public void doSaveAs() { }
+    public void doSaveAs() {
+        try { saveDocument(presentation.currentDashboardDocument(), true); }
+        catch (Exception error) { MessageDialog.openError(getSite().getShell(), "Save BeaverCanvas dashboard", error.getMessage()); }
+    }
 
     @Override
-    public boolean isSaveAsAllowed() { return false; }
+    public boolean isSaveAsAllowed() { return true; }
 
     @Override
     public boolean isDirty() { return dirty; }
