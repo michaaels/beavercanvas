@@ -103,11 +103,14 @@ async function main() {
       window.DBeaverECharts.loadDashboard({ ...dashboard, widgets: [invalid, dashboard.widgets[0]] }, true);
       window.dbeaverExecuteWidgetQuery = (id, sql) => {
         window.queries.push({ id, sql });
-        setTimeout(() => window.DBeaverECharts.setWidgetSnapshot(id, id === 'invalid-map' ? { ...snapshot, rows: [snapshot.rows[2]] } : snapshot), 10); return true;
+        // Independent queries can finish in either order; deliver the invalid one first.
+        setTimeout(() => window.DBeaverECharts.setWidgetSnapshot(id, id === 'invalid-map' ? { ...snapshot, rows: [snapshot.rows[2]] } : snapshot), id === 'invalid-map' ? 10 : 80); return true;
       };
     }, { dashboard, snapshot });
     await page.locator('#refreshDashboard').click(); await page.locator('#runReviewedQueries').click();
     await page.waitForFunction(() => document.querySelector('[data-widget-id="invalid-map"] .widget-chart').textContent.includes('No valid map points'));
+    await page.waitForFunction(validId => [...document.querySelectorAll('[data-widget-id]')]
+      .find(element => element.dataset.widgetId === validId)?.querySelector('.widget-chart canvas'), dashboard.widgets[0].id);
     assert.equal(await page.locator('.widget-chart canvas').count(), 1, 'An invalid map does not block other widgets');
     // Report conversion/editor and portable HTML use the same geographic mapping.
     await page.goto(pathToFileURL(path.join(web, 'report.html')).href);
