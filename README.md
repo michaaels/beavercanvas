@@ -14,18 +14,24 @@ pero **no para instalar y utilizar el plugin**.
 
 ## Descargar e instalar
 
-Descarga el instalador y su checksum en el [release **0.6.6-beta.1**](https://github.com/michaaels/beavercanvas/releases/tag/v0.6.6-beta.1).
+Descarga el instalador y su checksum en el [release **0.6.7-beta.1**](https://github.com/michaaels/beavercanvas/releases/tag/v0.6.7-beta.1).
 Todos los instaladores están en [GitHub Releases](https://github.com/michaaels/beavercanvas/releases).
 Los siguientes [releases se construyen y publican automáticamente](docs/AUTOMATIC-RELEASES.md)
 al enviar una etiqueta de versión, después de pasar las pruebas de Windows y Linux.
 La beta histórica [0.6.0](https://github.com/michaaels/beavercanvas/releases/tag/v0.6.0-beta.1)
-todavía utiliza el nombre anterior. Los pasos siguientes corresponden a BeaverCanvas 0.6.6.
+todavía utiliza el nombre anterior. Los pasos siguientes corresponden a BeaverCanvas 0.6.7.
 
 1. En DBeaver, abre **Help / Ayuda → Install New Software → Add → Archive**.
 2. Selecciona `beavercanvas-<version>.zip` sin descomprimirlo.
 3. Marca **BeaverCanvas Plugin for DBeaver Desktop**, completa la instalación y reinicia.
-4. Ejecuta un `SELECT` y selecciona **BeaverCanvas** en las pestañas del resultado.
-5. Para reportes, abre **Window → Show View → Other → BeaverCanvas → Report Designer**.
+4. Abre el icono **BeaverCanvas** de la barra derecha para crear un dashboard sin ejecutar SQL.
+5. Su menú permite abrir **Report Designer** y dashboards/reportes guardados.
+   También puedes ejecutar un `SELECT` y seleccionar **BeaverCanvas** en el resultado,
+   o utilizar **Window → BeaverCanvas**.
+
+Reinicia DBeaver después de actualizar: la versión anterior modificaba el filtro
+de atajos durante su sesión. La nueva versión limita sus comandos al navegador
+enfocado y deja los atajos del editor SQL bajo el control nativo de DBeaver.
 
 La actualización conserva la instalación existente: IDs P2, preferencias, extensiones
 `.echarts-dashboard.json` / `.echarts-report.json` y carpetas `Dashboards/ECharts` /
@@ -86,6 +92,12 @@ reordenar filas de gráficos, la previa muestra cómo se recupera el espacio.
 [Atajos, títulos automáticos y edición en vivo](docs/EDITING-WORKFLOW.md).
 
 ![Gráficos transferidos al diseñador con datos y propiedades en vivo](docs/screenshots/designer-workflow.png)
+
+Escribe directamente sobre la hoja. Cada gráfico ofrece **configuración** y
+**actualización** junto a su nombre; el editor conserva SQL, datos, leyenda y colores.
+El rango de fechas y el zoom/centro del mapa se mantienen al guardar y exportar.
+
+![Edición directa y botones de configuración y actualización en cada gráfico](docs/screenshots/report-authoring.png)
 
 Diseña una hoja con títulos, textos, imágenes, secciones, gráficos, KPIs y tablas SQL.
 Configura propiedades, fuentes de datos y parámetros; guarda plantillas reutilizables

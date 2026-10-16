@@ -12,7 +12,7 @@ for (const name of ['index.html', 'style.css']) {
 for (const name of ['beavercanvas-32.png', 'beavercanvas-64.png', 'beavercanvas-256.png']) {
     fs.copyFileSync(path.join(root, 'plugins/org.example.dbeaver.echarts/web/assets', name), path.join(output, 'assets', name));
 }
-for (const name of ['dashboard.png', 'map-widget-editor.png', 'designer-workflow.png']) {
+for (const name of ['dashboard.png', 'map-widget-editor.png', 'report-authoring.png']) {
     fs.copyFileSync(path.join(root, 'docs/screenshots', name), path.join(output, 'assets', name));
 }
 fs.writeFileSync(path.join(output, '.nojekyll'), '');
