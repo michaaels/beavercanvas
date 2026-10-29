@@ -19,6 +19,7 @@
     chartType: 'line',
     map: null,
     viewport: {},
+    grouping: null,
     xIndex: -1,
     yIndex: -1,
     yIndices: [],
@@ -211,7 +212,9 @@
     els.yField.addEventListener('change', () => updateConfiguration(() => {
       const index = Number(els.yField.value);
       state.yIndex = index;
-      state.yIndices = [index, ...state.yIndices.filter(item => item !== index)];
+      // This is the primary-value selector. Additional measures belong in Series.
+      state.yIndices = [index];
+      state.yAxes = { [index]: state.yAxes[index] || 'left' };
       syncPreferredSeries();
       renderSeriesOptions();
     }));
@@ -309,6 +312,7 @@
     }
     state.map = configuration.map ? window.DBeaverGeoData.normalize(configuration.map) : null;
     state.viewport = window.DBeaverEChartsAnalytics.normalizeViewport(configuration.viewport);
+    state.grouping = window.DBeaverEChartsAnalytics.normalizeGrouping(configuration.grouping);
     state.configurationLoaded = true;
     state.preferredXName = typeof configuration.xColumn === 'string' ? configuration.xColumn : null;
     state.preferredYNames = Array.isArray(configuration.yColumns)
@@ -358,6 +362,7 @@
     state.configurationLoaded = false;
     state.chartType = 'line';
     state.map = null;
+    state.grouping = null;
     state.renderer = 'canvas';
     state.preferredXName = null;
     state.preferredYNames = [];
@@ -397,7 +402,7 @@
   function configureFields(previousX, previousYNames) {
     const columns = state.snapshot.columns || [];
     fillSelect(els.xField, columns);
-    fillSelect(els.yField, columns);
+    fillSelect(els.yField, columns, column => column.kind === 'NUMERIC');
 
     state.xIndex = findColumn(columns, state.preferredXName || previousX);
     if (state.xIndex < 0) state.xIndex = inferX(columns);
@@ -425,6 +430,7 @@
 
   function normalizeSelectionForChart() {
     const columns = state.snapshot?.columns || [];
+    fillSelect(els.yField, columns, (column, index) => column.kind === 'NUMERIC' && index !== state.xIndex);
     const numericIndices = columns
       .map((column, index) => ({ column, index }))
       .filter(item => item.index !== state.xIndex && item.column.kind === 'NUMERIC')
@@ -496,9 +502,9 @@
     }
   }
 
-  function fillSelect(select, columns) {
+  function fillSelect(select, columns, include = () => true) {
     select.replaceChildren();
-    columns.forEach((column, index) => select.appendChild(new Option(`${column.name} (${column.kind})`, String(index))));
+    columns.forEach((column, index) => { if (include(column, index)) select.appendChild(new Option(`${column.name} (${column.kind})`, String(index))); });
   }
 
   function findColumn(columns, name) {
@@ -531,6 +537,11 @@
     const mapMode = !dashboardMode && state.chartType === 'map';
     document.body.classList.toggle('map-mode', mapMode);
     $('resultMapFields').hidden = !mapMode;
+    $('groupingPicker').hidden = !window.DBeaverEChartsAnalytics.canGroup(state.chartType);
+    const groupedConfig = currentChartConfiguration();
+    window.DBeaverGroupFields.render($('groupingFields'), groupedConfig, state.snapshot?.columns || [], () => {
+      state.grouping = groupedConfig.grouping; state.viewport = {}; render(); schedulePersistConfiguration();
+    });
     for (const control of [els.xField.closest('label'), els.yField.closest('label'), $('seriesPicker'), els.markLine.closest('details')]) control.hidden = mapMode;
     if (mapMode) {
       const config = { ...currentChartConfiguration(), map: state.map };
@@ -575,6 +586,7 @@
         yAxes: state.yAxes,
         chartType: state.chartType,
         map: state.map,
+        grouping: state.grouping,
         viewport: state.viewport,
         marks: state.marks,
         theme: state.theme
@@ -695,6 +707,7 @@
   function currentChartConfiguration() {
     return {
       chartType: state.chartType,
+      ...(state.grouping ? { grouping: state.grouping } : {}),
       ...(state.map ? { map: state.map } : {}),
       viewport: state.viewport,
       xColumn: selectedColumnName(state.xIndex) || state.preferredXName,
@@ -708,7 +721,7 @@
 
   function sourceSignature(widget) {
     const source = widget.source;
-    return JSON.stringify([source.sql, source.kind, source.project || '', source.connectionId || '', source.connection || '']);
+    return JSON.stringify([source.sql, source.kind, source.project || '', source.connectionId || '', source.connection || '', source.executionMode, source.sessionId]);
   }
 
   function isApproved(widget) { return state.queryApprovals.get(widget.id) === sourceSignature(widget); }
@@ -1000,7 +1013,7 @@
       schemaVersion: 1,
       ...currentChartConfiguration(),
       viewMode: state.viewMode,
-      dashboard: state.dashboard
+      dashboard: window.DBeaverEChartsDashboard.withoutSessions(state.dashboard)
     }));
   }
 

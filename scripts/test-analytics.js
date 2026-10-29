@@ -70,6 +70,24 @@ console.log('Analytical chart option tests OK');
 const newContext = { rows: [['A', 10, 3], ['A', 5, 2], ['B', 8, 4]],
   columns: [{ name: 'category', kind: 'STRING' }, { name: 'sales', kind: 'NUMERIC' }, { name: 'costs', kind: 'NUMERIC' }],
   rowCount: 3, xIndex: 0, yIndices: [1, 2], yAxes: {}, marks: {}, theme };
+const groupedInput = { ...newContext, chartType: 'line',
+  columns: [{name:'date',kind:'DATETIME'},{name:'site',kind:'STRING'},{name:'traffic',kind:'NUMERIC'}],
+  rows: [['2026-10-19','Quito',10],['2026-10-19','Quito',20],['2026-10-19','Tena',5],['2026-10-20','Quito',null]],
+  xIndex:0,yIndices:[2], yAxes:{2:'right'}, grouping:{aggregate:'sum',seriesColumn:'site',mode:'series'} };
+const plain = value => JSON.parse(JSON.stringify(value));
+const grouped = analytics.groupedContext(groupedInput);
+assert.deepEqual(plain(grouped.rows), [['2026-10-19',30,5],['2026-10-20',null,null]]);
+assert.deepEqual(plain(grouped.yAxes), {1:'right',2:'right'});
+const groupedOption = analytics.buildOption(groupedInput);
+assert.equal(groupedOption.series.length,2); assert.equal(groupedOption.xAxis.type,'time');
+assert.equal(groupedOption.yAxis[1].name,'traffic','The axis names the measure, not every site');
+for (const [method,value] of [['average',15],['count',2],['min',10],['max',20]]) {
+  assert.equal(analytics.groupedContext({...groupedInput,grouping:{...groupedInput.grouping,aggregate:method}}).rows[0][1],value,method);
+}
+const combined = analytics.groupedContext({...groupedInput,grouping:{...groupedInput.grouping,mode:'category'}});
+assert.deepEqual(plain(combined.rows.slice(0,2)),[['2026-10-19 · Quito',30],['2026-10-19 · Tena',5]]);
+assert.throws(()=>analytics.groupedContext({...groupedInput,rows:Array.from({length:49},(_,i)=>['2026-10-19',String(i),1])}),/48 series/);
+assert.deepEqual(groupedInput.rows[0],['2026-10-19','Quito',10],'Grouping does not mutate the query result');
 const horizontal = analytics.buildOption({ ...newContext, chartType: 'horizontalBar' });
 assert.equal(horizontal.yAxis.type, 'category');
 assert.equal(horizontal.xAxis[0].type, 'value');

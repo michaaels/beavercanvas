@@ -42,6 +42,8 @@ final class DashboardQueryJob extends AbstractJob {
     private final Consumer<String> onSuccess;
     private final Consumer<Exception> onFailure;
     private final List<ReportParameters.Binding> parameters;
+    private final boolean borrowContext;
+    private static final Map<DBCExecutionContext, java.util.concurrent.locks.ReentrantLock> SESSION_LOCKS = new java.util.WeakHashMap<>();
 
     DashboardQueryJob(
         java.util.function.Supplier<DBCExecutionContext> context,
@@ -58,6 +60,12 @@ final class DashboardQueryJob extends AbstractJob {
     DashboardQueryJob(java.util.function.Supplier<DBCExecutionContext> context, String sql, int maxRows, int maxCells,
                       int timeoutSeconds, Consumer<String> onSuccess, Consumer<Exception> onFailure,
                       List<ReportParameters.Binding> parameters) {
+        this(context, sql, maxRows, maxCells, timeoutSeconds, onSuccess, onFailure, parameters, false);
+    }
+
+    DashboardQueryJob(java.util.function.Supplier<DBCExecutionContext> context, String sql, int maxRows, int maxCells,
+                      int timeoutSeconds, Consumer<String> onSuccess, Consumer<Exception> onFailure,
+                      List<ReportParameters.Binding> parameters, boolean borrowContext) {
         super("Refresh BeaverCanvas dashboard widget");
         this.context = context;
         this.sql = sql;
@@ -67,6 +75,7 @@ final class DashboardQueryJob extends AbstractJob {
         this.onSuccess = onSuccess;
         this.onFailure = onFailure;
         this.parameters = List.copyOf(parameters);
+        this.borrowContext = borrowContext;
         setSystem(true);
         setPriority(SHORT);
         setJobGroup(QUERIES);
@@ -144,9 +153,26 @@ final class DashboardQueryJob extends AbstractJob {
     }
 
     private String execute(DBRProgressMonitor monitor) throws Exception {
+        if (borrowContext) {
+            DBCExecutionContext borrowed = context.get();
+            if (borrowed == null || !borrowed.isConnected()) throw new IllegalStateException("The SQL editor session disconnected. Select its session again.");
+            java.util.concurrent.locks.ReentrantLock lock;
+            synchronized (SESSION_LOCKS) { lock = SESSION_LOCKS.computeIfAbsent(borrowed, ignored -> new java.util.concurrent.locks.ReentrantLock()); }
+            while (!lock.tryLock(100, java.util.concurrent.TimeUnit.MILLISECONDS)) checkCancelled(monitor);
+            try {
+                checkCancelled(monitor);
+                if (context.get() != borrowed || !borrowed.isConnected()) throw new IllegalStateException("The selected SQL editor session changed while waiting. Select it again.");
+                EditorQuerySessions.requireIdle(borrowed);
+                return executeInContext(borrowed, monitor);
+            }
+            finally { lock.unlock(); }
+        }
+        try (DBCExecutionContext isolated = openContext(monitor)) { return executeInContext(isolated, monitor); }
+    }
+
+    private String executeInContext(DBCExecutionContext context, DBRProgressMonitor monitor) throws Exception {
         try (
-            DBCExecutionContext isolated = openContext(monitor);
-            DBCSession session = isolated.openSession(monitor, DBCExecutionPurpose.USER, "BeaverCanvas dashboard widget");
+            DBCSession session = context.openSession(monitor, DBCExecutionPurpose.USER, "BeaverCanvas dashboard widget");
             DBCStatement statement = prepare(session)
         ) {
             activeStatement.set(statement);

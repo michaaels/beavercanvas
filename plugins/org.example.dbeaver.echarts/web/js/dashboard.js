@@ -41,6 +41,7 @@
         yColumns,
         ...(chartConfiguration.map ? { map: window.DBeaverGeoData.normalize(chartConfiguration.map) } : {}),
         ...(chartConfiguration.viewport ? { viewport: window.DBeaverEChartsAnalytics.normalizeViewport(chartConfiguration.viewport) } : {}),
+        ...(chartConfiguration.grouping ? { grouping: window.DBeaverEChartsAnalytics.normalizeGrouping(chartConfiguration.grouping) } : {}),
         yAxes: chartConfiguration.yAxes || {},
         marks: chartConfiguration.marks || {}
       },
@@ -58,6 +59,8 @@
       connection: typeof source?.connection === 'string' ? source.connection : null,
       connectionId: typeof source?.connectionId === 'string' ? source.connectionId : null,
       project: typeof source?.project === 'string' ? source.project : null,
+      executionMode: source?.executionMode === 'editor' ? 'editor' : 'isolated',
+      ...(typeof source?.sessionId === 'string' ? { sessionId: source.sessionId.slice(0, 200) } : {}),
       sql: typeof source?.sql === 'string' ? source.sql : ''
     };
   }
@@ -90,6 +93,7 @@
         throw new Error(`"${widget.title}" has no SQL. Open Edit and assign its query before saving.`);
       }
       widget.source.kind = 'savedQuery';
+      delete widget.source.sessionId;
       if (widget.refreshPolicy.mode === 'onResult') widget.refreshPolicy.mode = 'manual';
     }
     return dashboard;
@@ -98,6 +102,9 @@
   function normalizeDictionary(value) {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
     return Object.fromEntries(Object.entries(value).filter(([key]) => typeof key === 'string').slice(0, 50));
+  }
+  function withoutSessions(value) {
+    const copy = JSON.parse(JSON.stringify(value)); for (const widget of copy.widgets) delete widget.source.sessionId; return copy;
   }
 
   function normalizeWidget(value) {
@@ -114,6 +121,7 @@
         yColumns: Array.isArray(chart.yColumns) ? chart.yColumns.filter(name => typeof name === 'string').slice(0, 12) : [],
         ...(chart.map ? { map: window.DBeaverGeoData.normalize(chart.map) } : {}),
         ...(chart.viewport ? { viewport: window.DBeaverEChartsAnalytics.normalizeViewport(chart.viewport) } : {}),
+        ...(chart.grouping ? { grouping: window.DBeaverEChartsAnalytics.normalizeGrouping(chart.grouping) } : {}),
         colors: (Array.isArray(chart.colors) ? chart.colors : []).filter(value => /^#[\da-f]{6}$/i.test(value)).slice(0, 12), legend: chart.legend !== false,
         yAxes: normalizeDictionary(chart.yAxes),
         marks: normalizeDictionary(chart.marks)
@@ -497,7 +505,7 @@
       yIndices,
       yAxes,
       chartType: widget.chart.chartType,
-      map: widget.chart.map,
+      map: widget.chart.map, grouping: widget.chart.grouping,
       viewport: widget.chart.viewport, colors: widget.chart.colors, legend: widget.chart.legend,
       dashboard: true,
       marks: widget.chart.marks,
@@ -552,6 +560,7 @@
   }
 
   window.DBeaverEChartsDashboard = Object.freeze({
+    withoutSessions,
     SCHEMA_VERSION,
     createDashboard,
     createWidget,

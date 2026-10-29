@@ -18,7 +18,8 @@
   function source(input) {
     return { id: text(input.id) || id('source'), name: text(input.name) || 'Query', kind: 'savedQuery',
       project: text(input.project), connection: text(input.connection), connectionId: text(input.connectionId),
-      sql: text(input.sql, 100_000), maxRows: Math.round(number(input.maxRows, 0, 100_000, 0)) };
+      sql: text(input.sql, 100_000), maxRows: Math.round(number(input.maxRows, 0, 100_000, 0)),
+      executionMode: input.executionMode === 'editor' ? 'editor' : 'isolated', ...(input.sessionId ? { sessionId: text(input.sessionId) } : {}) };
   }
   function widget(type = 'text') {
     if (!TYPES.includes(type)) throw new Error('Unsupported report component.');
@@ -73,7 +74,7 @@
         borderWidth: number(style.borderWidth, 0, 8, 0), padding: number(style.padding, 0, 64, normalized.style.padding), fontSize: number(style.fontSize, 10, 72, normalized.style.fontSize),
         fontFamily: ['Segoe UI', 'Arial', 'Georgia', 'Consolas'].includes(style.fontFamily) ? style.fontFamily : 'Segoe UI',
         align: ['left', 'center', 'right'].includes(style.align) ? style.align : 'left' };
-      normalized.config = { ...normalized.config, text: text(config.text, 20_000), image: image(config.image), alt: text(config.alt),
+      normalized.config = { ...normalized.config, text: text(config.text, 20_000), textIndent: number(config.textIndent, 0, 1600, 0), image: image(config.image), alt: text(config.alt),
         column: text(config.column), aggregate: ['sum', 'average', 'count', 'first', 'min', 'max'].includes(config.aggregate) ? config.aggregate : 'sum',
         numberFormat: ['number', 'currency', 'percent', 'date', 'text'].includes(config.numberFormat) ? config.numberFormat : 'number',
         decimals: number(config.decimals, 0, 8, 2), prefix: text(config.prefix, 40), suffix: text(config.suffix, 40),
@@ -89,6 +90,7 @@
         yColumns: (Array.isArray(chart.yColumns) ? chart.yColumns : []).slice(0, 12).map(name => text(name)),
         ...(chart.map ? { map: window.DBeaverGeoData.normalize(chart.map) } : {}),
         ...(chart.viewport ? { viewport: window.DBeaverEChartsAnalytics.normalizeViewport(chart.viewport) } : {}),
+        ...(chart.grouping ? { grouping: window.DBeaverEChartsAnalytics.normalizeGrouping(chart.grouping) } : {}),
         yAxes: Object.fromEntries(Object.entries(chart.yAxes || {}).filter(([name, side]) => name.length <= 200 && ['left', 'right'].includes(side))),
         marks: { markLine: chart.marks?.markLine === true, markArea: chart.marks?.markArea === true, visualMap: chart.marks?.visualMap === true },
         colors: (Array.isArray(chart.colors) ? chart.colors : []).filter(value => /^#[\da-f]{6}$/i.test(value)).slice(0, 12), legend: chart.legend !== false };
@@ -147,7 +149,7 @@
     return normalize(result);
   }
   function signature(source, values) {
-    return JSON.stringify([source.sql, source.project, source.connectionId, source.connection, source.maxRows,
+    return JSON.stringify([source.sql, source.project, source.connectionId, source.connection, source.maxRows, source.executionMode, source.sessionId,
       Object.entries(values || {}).sort(([a], [b]) => a.localeCompare(b))]);
   }
   function runtimeSource(template, source, values) {
@@ -166,7 +168,10 @@
   function history(document, limit = 80, maxBytes = 24 * 1024 * 1024) {
     return window.DBeaverDocumentHistory.create(document, normalize, limit, maxBytes);
   }
+  function portable(document) {
+    const copy = clone(document); for (const source of copy.sources) delete source.sessionId; return copy;
+  }
 
   window.DBeaverReportModel = Object.freeze({ FORMAT, TYPES, BOUNDS, create, widget, source, normalize, fromDashboard, clone, id,
-    history, place, compact, signature, runtimeSource, image });
+    history, place, compact, signature, runtimeSource, image, portable });
 })();

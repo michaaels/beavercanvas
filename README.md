@@ -14,12 +14,12 @@ pero **no para instalar y utilizar el plugin**.
 
 ## Descargar e instalar
 
-Descarga el instalador y su checksum en el [release **0.6.7-beta.1**](https://github.com/michaaels/beavercanvas/releases/tag/v0.6.7-beta.1).
+Descarga el instalador y su checksum en el [release **0.6.8**](https://github.com/michaaels/beavercanvas/releases/tag/v0.6.8).
 Todos los instaladores están en [GitHub Releases](https://github.com/michaaels/beavercanvas/releases).
 Los siguientes [releases se construyen y publican automáticamente](docs/AUTOMATIC-RELEASES.md)
 al enviar una etiqueta de versión, después de pasar las pruebas de Windows y Linux.
 La beta histórica [0.6.0](https://github.com/michaaels/beavercanvas/releases/tag/v0.6.0-beta.1)
-todavía utiliza el nombre anterior. Los pasos siguientes corresponden a BeaverCanvas 0.6.7.
+todavía utiliza el nombre anterior. Los pasos siguientes corresponden a BeaverCanvas 0.6.8.
 
 1. En DBeaver, abre **Help / Ayuda → Install New Software → Add → Archive**.
 2. Selecciona `beavercanvas-<version>.zip` sin descomprimirlo.
@@ -38,7 +38,7 @@ La actualización conserva la instalación existente: IDs P2, preferencias, exte
 `Reports/ECharts`. No necesitas mover tus archivos ni instalar un segundo plugin.
 
 Target probado: **DBeaver Community 26.2.2, Windows y Linux x86_64**.
-Es una **beta sin firma**, con certificación de drivers, clientes de correo y macOS pendiente.
+Es un **paquete experimental sin firma**, con certificación de drivers, clientes de correo y macOS pendiente.
 Consulta la [guía de instalación](docs/P2-UPDATE-SITE.md), la
 [matriz de compatibilidad](docs/COMPATIBILITY.md) y los [pendientes de producción](docs/PRODUCTION-READINESS.md).
 
@@ -50,6 +50,11 @@ agrupadas y configuración de gráficos por etapas; incluye capturas del desarro
 Las [mejoras de edición directa](docs/REPORT-AUTHORING-UX.md) incluyen texto sobre
 la hoja, configuración/actualización en cada gráfico, pastel de valor único y
 conservación del zoom de gráficos y mapas.
+
+En 0.6.8: [zoom con Ctrl+rueda, inserción con `/`, agrupación por sitio/fecha
+y sesiones SQL para tablas temporales](docs/AUTHORING-WORKFLOW.md).
+El [análisis de automatización por CLI y correo](docs/CLI-AUTOMATION-ANALYSIS.md)
+describe la siguiente función propuesta; el CLI todavía no está implementado.
 
 Capturas del frontend local de BeaverCanvas con datos de ejemplo, tomadas durante
 las pruebas de interacción. La [captura nativa de la beta 0.6.0 en Linux](docs/screenshots/report-designer-linux.png)
@@ -83,6 +88,17 @@ consulta. Ejecuta una nueva previa para aplicar el cambio.
 
 ![Editor de widget con consulta SQL, selección de series y vista previa](docs/screenshots/widget-sql.png)
 
+### Agrupación por fecha y sitio
+
+En **Grouping**, elige **Sum**, `sitio` como segunda categoría y **Separate series**
+para comparar una línea por sitio sobre la fecha. También puedes usar promedio,
+conteo, mínimo o máximo. Se agregan las filas cargadas; utiliza `GROUP BY` en SQL
+si necesitas agregar toda la tabla. **Y / value** reemplaza la medida y **Series**
+añade varias. Para tablas temporales, selecciona la sesión que las creó en
+**Query → Execution context**; vuelve a seleccionarla al reabrir una plantilla.
+
+![Agrupación de valores por fecha y sitio con suma y series separadas](docs/screenshots/grouping.png)
+
 ### Diseñador de reportes
 
 El botón **Report Designer** lleva los gráficos del dashboard con los datos ya
@@ -98,6 +114,12 @@ Escribe directamente sobre la hoja. Cada gráfico ofrece **configuración** y
 El rango de fechas y el zoom/centro del mapa se mantienen al guardar y exportar.
 
 ![Edición directa y botones de configuración y actualización en cada gráfico](docs/screenshots/report-authoring.png)
+
+**Ctrl+rueda** ajusta el zoom de la hoja. Haz clic en el espacio blanco y escribe
+en esa posición, o pulsa **/** para buscar e insertar un componente. **Ctrl+F**
+busca componentes; los controles de texto mantienen sus atajos nativos.
+
+![Reporte con zoom de hoja, párrafo colocado en la posición elegida y gráfico agrupado](docs/screenshots/sheet-input.png)
 
 Diseña una hoja con títulos, textos, imágenes, secciones, gráficos, KPIs y tablas SQL.
 Configura propiedades, fuentes de datos y parámetros; guarda plantillas reutilizables

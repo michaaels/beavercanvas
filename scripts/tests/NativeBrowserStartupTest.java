@@ -130,7 +130,7 @@ public final class NativeBrowserStartupTest implements BundleActivator {
             if (method.getName().equals("activateHandler")) commands.put((String) arguments[0], arguments);
             return null;
         });
-        Object lease = constructor.newInstance(service); Method attach = keys.getDeclaredMethod("attach", Browser.class); attach.setAccessible(true); attach.invoke(lease, browser);
+        Object lease = constructor.newInstance(service); Method attach = keys.getDeclaredMethod("attach", Browser.class, boolean.class); attach.setAccessible(true); attach.invoke(lease, browser, true);
         if (!commands.keySet().containsAll(java.util.Set.of("org.eclipse.ui.edit.copy", "org.eclipse.ui.edit.paste", "org.eclipse.ui.edit.cut", "org.eclipse.ui.edit.selectAll")))
             throw new AssertionError("Browser edit commands are missing");
         Method ownsFocus = keys.getDeclaredMethod("ownsFocus", Object.class, Object.class); ownsFocus.setAccessible(true);
@@ -150,6 +150,13 @@ public final class NativeBrowserStartupTest implements BundleActivator {
         String saved = (String) browser.evaluate("return JSON.stringify(window.DBeaverECharts.reportDocument());");
         if (saved.contains("\"rows\"")) throw new AssertionError("Transient rows entered the template");
         testBrowserEditing(display, browser, commands);
+        browser.execute("document.getElementById('reportCanvas').focus();window.nativeSaveCount=0;window.dbeaverSaveReport=function(){window.nativeSaveCount++;return 'native-shortcut-probe.echarts-report.json';};");
+        invokeEdit(commands.get("org.eclipse.ui.file.save")[1]);
+        waitFor(display, () -> Boolean.TRUE.equals(browser.evaluate("return window.nativeSaveCount===1;")), "native report save shortcut");
+        invokeEdit(commands.get("org.eclipse.ui.edit.findReplace")[1]);
+        waitFor(display, () -> Boolean.TRUE.equals(browser.evaluate("return document.activeElement.getAttribute('aria-label')==='Find a component';")), "native report find shortcut");
+        browser.execute("window.DBeaverReportCommandMenu.close();");
+        System.out.println("Native report commands OK: focused save/find routing and native editor isolation");
         System.out.println("Native editing workflow OK: focused browser commands registered without global key-filter changes; transferred preview renders without SQL and stays outside template; workbench service simulated");
     }
 

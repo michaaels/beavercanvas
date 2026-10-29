@@ -6,11 +6,11 @@ to build the package, but is not needed to use it.
 ## Instalar en DBeaver
 
 Target de la beta: **DBeaver Community 26.2.2, Windows y Linux x86_64**.
-Instalador y checksum de BeaverCanvas: [**0.6.7-beta.1**](https://github.com/michaaels/beavercanvas/releases/tag/v0.6.7-beta.1).
+Instalador y checksum de BeaverCanvas: [**0.6.8**](https://github.com/michaaels/beavercanvas/releases/tag/v0.6.8).
 Los paquetes anteriores están en [GitHub Releases](https://github.com/michaaels/beavercanvas/releases).
 El [release histórico 0.6.0](https://github.com/michaaels/beavercanvas/releases/tag/v0.6.0-beta.1)
 conserva el nombre DBeaver ECharts y su ZIP `dbeaver-echarts-*.zip`; usa sus etiquetas
-anteriores si instalas esa versión. Los pasos siguientes describen BeaverCanvas 0.6.7.
+anteriores si instalas esa versión. Los pasos siguientes describen BeaverCanvas 0.6.8.
 
 1. Abre **Help / Ayuda → Install New Software / Instalar nuevo software**.
 2. Pulsa **Add / Añadir → Archive / Archivo** y selecciona `beavercanvas-<version>.zip`.

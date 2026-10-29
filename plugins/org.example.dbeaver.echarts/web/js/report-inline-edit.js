@@ -26,6 +26,10 @@
       text.addEventListener('input', () => hooks.text(widget.id, text.innerText.replace(/\r\n/g, '\n')));
       text.addEventListener('blur', () => hooks.end());
       text.addEventListener('keydown', event => {
+        if (event.key === '/' && !event.ctrlKey && !event.metaKey && !text.textContent.trim()) {
+          event.preventDefault(); event.stopPropagation();
+          hooks.commands({ ...widget, replaceId: widget.id }, text.getBoundingClientRect());
+        }
         if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); text.blur(); frame.focus(); }
       });
       frame.querySelector('.report-component-body').addEventListener('pointerdown', event => {
@@ -36,15 +40,15 @@
     root.setAttribute('aria-label', 'Report sheet. Click blank space and type to add text.');
     root.addEventListener('pointerdown', event => {
       if (event.button !== 0 || event.target.closest('.report-component')) return;
-      const grid = event.target.closest('.report-grid');
+      const grid = event.target.closest('.report-grid') || root.querySelector(':scope > .report-grid');
       if (!grid) return;
       event.preventDefault(); clear(); hooks.select(); root.focus();
       blank = hooks.position(event, grid);
       if (!blank) return;
       caret = document.createElement('span'); caret.className = 'report-text-caret'; caret.setAttribute('aria-hidden', 'true');
       const box = grid.getBoundingClientRect(), zoom = hooks.zoom();
-      caret.style.left = `${(event.clientX - box.x) / zoom}px`;
-      caret.style.top = `${blank.layout.y * hooks.rowPitch()}px`;
+      caret.style.left = `${blank.config.textIndent + 12}px`;
+      caret.style.top = `${blank.layout.y * hooks.rowPitch() + 12}px`;
       grid.append(caret);
     });
     root.addEventListener('dblclick', event => {
@@ -58,7 +62,9 @@
     root.addEventListener('keydown', event => {
       if (event.target !== root || !blank || event.ctrlKey || event.metaKey || event.altKey) return;
       if (event.key === 'Escape') { clear(); return; }
-      if (event.key.length === 1 || event.key === 'Enter') { event.preventDefault(); insert(event.key === 'Enter' ? '' : event.key); }
+      if (event.key === '/') {
+        event.preventDefault(); hooks.commands(blank, caret.getBoundingClientRect());
+      } else if (event.key.length === 1 || event.key === 'Enter') { event.preventDefault(); insert(event.key === 'Enter' ? '' : event.key); }
     });
     return { decorate, clear, focus };
   }
