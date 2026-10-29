@@ -81,8 +81,9 @@ jobs:
           node scripts/test-report-interactions.js
           if ($LASTEXITCODE -ne 0) { throw 'Report mouse, sections and lifecycle tests failed' }
           node scripts/test-report-authoring-ux.js
+          if ($LASTEXITCODE -ne 0) { throw 'Report direct editing and viewport tests failed' }
           node scripts/test-authoring-workflow.js
-          if ($LASTEXITCODE -ne 0) { throw 'Report text, chart actions, pie and viewport tests failed' }
+          if ($LASTEXITCODE -ne 0) { throw 'Grouping, editor sessions and authoring workflow tests failed' }
           python scripts/test-report-eml.py
           if ($LASTEXITCODE -ne 0) { throw 'Report draft MIME tests failed' }
       - name: Build previous and current P2 packages

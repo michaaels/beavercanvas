@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.6.8 preview — 2026-10-28
+## 0.6.8 — 2026-10-29
 
 - Zoom Report Designer with Ctrl+wheel while retaining ordinary scrolling and
   the chart's own zoom range; preserve the pointer anchor within scroll bounds.

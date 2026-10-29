@@ -45,11 +45,11 @@ async function main() {
             assert(await page.evaluate(() => [...document.images].every(image => image.complete && image.naturalWidth > 0)));
             await page.getByRole('navigation').getByRole('link', {name: 'Instalar', exact: true}).click();
             assert(new URL(page.url()).hash === '#instalar');
-            await page.getByText('Antes de instalar la beta', {exact: true}).click();
+            await page.getByText('Antes de instalar', {exact: true}).click();
             assert(await page.locator('details').evaluate(element => element.open));
             const downloads = await page.locator('a.button.primary').evaluateAll(links => links.map(link => link.href));
             assert.equal(downloads.length, 2);
-            assert(downloads.every(url => url === 'https://github.com/michaaels/beavercanvas/releases/download/v0.6.7-beta.1/beavercanvas-0.6.7.v20261016125555_6a7e3fbc.zip'));
+            assert(downloads.every(url => url === 'https://github.com/michaaels/beavercanvas/releases/tag/v0.6.8'));
             await page.goto(address);
             await page.evaluate(async () => {
                 for (const image of document.images) image.loading = 'eager';

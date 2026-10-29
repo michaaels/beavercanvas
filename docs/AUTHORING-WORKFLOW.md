@@ -1,6 +1,6 @@
 # Edición, agrupaciones y sesiones SQL
 
-Cambios de desarrollo posteriores a 0.6.7 beta. La generación y el envío por CLI
+Funciones incluidas en BeaverCanvas 0.6.8. La generación y el envío por CLI
 se analizan por separado en [CLI-AUTOMATION-ANALYSIS.md](CLI-AUTOMATION-ANALYSIS.md);
 ese cliente todavía no está implementado.
 
