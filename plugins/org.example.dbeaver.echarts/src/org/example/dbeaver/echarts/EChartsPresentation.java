@@ -93,6 +93,7 @@ public final class EChartsPresentation extends AbstractPresentation {
     private Runnable reportSaved;
     private final List<BrowserFunction> reportFunctions = new ArrayList<>();
     private final Map<String, DashboardQueryJob> widgetQueryJobs = new ConcurrentHashMap<>();
+    private final EditorQuerySessions editorSessions = new EditorQuerySessions();
     private final Map<String, Long> widgetQueryGenerations = new ConcurrentHashMap<>();
 
     @Override
@@ -166,7 +167,7 @@ public final class EChartsPresentation extends AbstractPresentation {
             Path allowedRoot = Paths.get(page.toURI()).getParent().toAbsolutePath().normalize();
 
             browser = new Browser(root, SWT.NONE);
-            browserKeys = BrowserKeyBindings.install(browser);
+            browserKeys = BrowserKeyBindings.install(browser, reportMode);
             root.addListener(SWT.FocusIn, event -> { if (isBrowserAvailable()) browser.setFocus(); });
             browser.setJavascriptEnabled(true);
             browser.addLocationListener(new LocationAdapter() {
@@ -298,6 +299,7 @@ public final class EChartsPresentation extends AbstractPresentation {
             };
 
             registerReportFunctions();
+            reportFunction("dbeaverListEditorSessions", arguments -> editorSessions.list(controller == null ? null : controller.getExecutionContext()));
             registerThemeListener();
             if (!browser.setUrl(allowedPage)) {
                 throw new IllegalStateException("SWT Browser refused to load: " + allowedPage);
@@ -679,14 +681,14 @@ public final class EChartsPresentation extends AbstractPresentation {
         cancelWidgetQuery(widgetId);
         long generation = widgetQueryGenerations.merge(widgetId, 1L, Long::sum);
         DashboardQueryJob job = new DashboardQueryJob(
-            () -> DashboardConnections.resolve(source, dashboardProject),
+            () -> "editor".equals(JsonFields.string(source, "executionMode")) ? editorSessions.resolve(source) : DashboardConnections.resolve(source, dashboardProject),
             plan.sql(),
             maxRows,
             EChartsPreferences.getMaxCells(),
             EChartsPreferences.getQueryTimeoutSeconds(),
             snapshot -> publishWidgetSnapshot(widgetId, generation, snapshot),
             error -> publishWidgetError(widgetId, generation, error),
-            plan.bindings()
+            plan.bindings(), "editor".equals(JsonFields.string(source, "executionMode"))
         );
         widgetQueryJobs.put(widgetId, job);
         job.schedule();
@@ -926,6 +928,7 @@ public final class EChartsPresentation extends AbstractPresentation {
 
     @Override
     public void dispose() {
+        editorSessions.close();
         if (browserKeys != null) { browserKeys.release(); browserKeys = null; }
         reportPreviewData = null;
         for (BrowserFunction function : reportFunctions) if (!function.isDisposed()) function.dispose();

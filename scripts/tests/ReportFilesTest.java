@@ -26,6 +26,8 @@ public final class ReportFilesTest {
                  "label":"zona","value":"ventas","details":["region","costos"],"password":"secret"}
                 """).getAsJsonObject();
             chart.getAsJsonObject("config").getAsJsonObject("chart").add("map", map);
+            chart.getAsJsonObject("config").getAsJsonObject("chart").add("grouping", JsonParser.parseString("{\"aggregate\":\"sum\",\"seriesColumn\":\"sitio\",\"mode\":\"series\",\"password\":\"secret\"}"));
+            source.addProperty("executionMode", "editor"); source.addProperty("sessionId", "runtime-only-session");
             chart.getAsJsonObject("config").getAsJsonObject("chart").add("viewport", JsonParser.parseString("""
                 {"dataZoom":[{"start":55,"end":90,"password":"secret"}],
                  "geo":{"zoom":4,"center":[-78.4,-0.18],"password":"secret"},"password":"secret"}
@@ -34,6 +36,9 @@ public final class ReportFilesTest {
             ReportFiles.write(file, report.toString());
             String saved = ReportFiles.read(file), sql = Files.readString(DocumentFiles.sqlPath(file));
             check(!saved.contains("secret") && !saved.contains("rows"), "Runtime/credentials escaped the template boundary");
+            check(!saved.contains("runtime-only-session") && saved.contains("\"executionMode\": \"editor\""), "Session preference must persist without the live session binding");
+            var savedGrouping = JsonParser.parseString(saved).getAsJsonObject().getAsJsonArray("widgets").get(0).getAsJsonObject().getAsJsonObject("config").getAsJsonObject("chart").getAsJsonObject("grouping");
+            check(savedGrouping.get("aggregate").getAsString().equals("sum") && savedGrouping.get("seriesColumn").getAsString().equals("sitio"), "Chart grouping lost in native persistence");
             JsonObject savedMap = JsonParser.parseString(saved).getAsJsonObject().getAsJsonArray("widgets").get(0).getAsJsonObject()
                 .getAsJsonObject("config").getAsJsonObject("chart").getAsJsonObject("map");
             check(savedMap.get("location").getAsString().equals("geo") && savedMap.getAsJsonArray("details").size() == 2, "Map fields lost on native save/reopen");

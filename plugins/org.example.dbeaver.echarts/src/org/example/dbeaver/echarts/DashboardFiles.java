@@ -45,6 +45,7 @@ final class DashboardFiles {
                 throw new IllegalArgumentException("Widget \"" + JsonFields.string(widget, "title") + "\" has no SQL. Assign it in Edit.");
             }
             source.addProperty("kind", "savedQuery");
+            source.remove("sessionId");
             JsonObject policy = widget.getAsJsonObject("refreshPolicy");
             if (policy != null && "onResult".equals(JsonFields.string(policy, "mode"))) policy.addProperty("mode", "manual");
         }

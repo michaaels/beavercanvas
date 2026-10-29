@@ -65,7 +65,7 @@ final class ReportFiles {
         JsonArray cleanSources = new JsonArray();
         Set<String> sourceIds = new HashSet<>();
         for (var element : sources) {
-            JsonObject source = fields(element.getAsJsonObject(), "id", "name", "project", "connection", "connectionId", "sql", "maxRows");
+            JsonObject source = fields(element.getAsJsonObject(), "id", "name", "project", "connection", "connectionId", "sql", "maxRows", "executionMode");
             String id = JsonFields.string(source, "id");
             if (id.isBlank() || id.length() > 200 || !sourceIds.add(id) || JsonFields.string(source, "sql").length() > 100_000) {
                 throw new IllegalArgumentException("Invalid or duplicate report query.");
@@ -94,7 +94,7 @@ final class ReportFiles {
     }
 
     private static JsonObject normalizeConfig(JsonObject input) {
-        JsonObject config = fields(input, "text", "image", "alt", "column", "aggregate", "numberFormat", "decimals", "prefix", "suffix", "totals", "groupBy", "pageSize", "sortColumn", "sortDirection");
+        JsonObject config = fields(input, "text", "textIndent", "image", "alt", "column", "aggregate", "numberFormat", "decimals", "prefix", "suffix", "totals", "groupBy", "pageSize", "sortColumn", "sortDirection");
         String image = JsonFields.string(config, "image");
         if (!image.isBlank() && (!image.matches("data:image/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/=]+") || image.length() > 2_800_000)) {
             throw new IllegalArgumentException("Use a local PNG, JPEG, GIF or WebP image under 2 MiB.");
@@ -119,6 +119,13 @@ final class ReportFiles {
             chart.add("map", normalizeMap(input.getAsJsonObject("map")));
         }
         if (input.has("viewport")) chart.add("viewport", normalizeViewport(object(input, "viewport")));
+        if (input.has("grouping")) {
+            JsonObject grouping = object(input, "grouping"), normalized = new JsonObject();
+            String method = JsonFields.string(grouping, "aggregate"), mode = JsonFields.string(grouping, "mode");
+            normalized.addProperty("aggregate", Set.of("none", "sum", "average", "count", "min", "max").contains(method) ? method : "none");
+            normalized.addProperty("seriesColumn", JsonFields.string(grouping, "seriesColumn").substring(0, Math.min(200, JsonFields.string(grouping, "seriesColumn").length())));
+            normalized.addProperty("mode", "category".equals(mode) ? "category" : "series"); chart.add("grouping", normalized);
+        }
         return chart;
     }
 

@@ -8,6 +8,8 @@ const cliArgs = process.argv.slice(2);
 const pdeOutput = cliArgs.includes('--pde-output');
 const installed = cliArgs.includes('--installed');
 const nativeStartup = cliArgs.includes('--native-startup');
+const jdbcSession = cliArgs.includes('--jdbc-session');
+if (jdbcSession && (installed || pdeOutput || nativeStartup)) throw new Error('JDBC session tests require the isolated source bundle');
 if (installed && pdeOutput) throw new Error('Choose --installed or --pde-output');
 const home = path.resolve(cliArgs.find(value => !value.startsWith('--')) || path.join(root, '.dev/dbeaver-26.2.2/dbeaver'));
 const executableSuffix = process.platform === 'win32' ? '.exe' : '';
@@ -75,6 +77,8 @@ if (pdeOutput) {
   console.log('Testing actual Eclipse PDE output: ' + classes);
 } else if (!installed) {
   run(compiler('javac'), ['--release', '21', '-encoding', 'UTF-8', '-cp', path.join(plugins, '*'), '-d', classes, ...sources]);
+  if (jdbcSession) run(compiler('javac'), ['--release','21','-encoding','UTF-8','-cp',classes+path.delimiter+path.join(plugins,'*'),'-d',classes,
+    'scripts/tests/DashboardQueryControlsTest.java','scripts/tests/EditorSessionJdbcTest.java']);
 }
 let pluginJar = installed ? installedPlugin : path.join(output, 'echarts-test.jar');
 if (installed) {
@@ -106,7 +110,8 @@ if (nativeStartup) {
 }
 const registryOutput = run(java('java'), ['--enable-native-access=ALL-UNNAMED', '-Djava.library.path=' + home,
   '-cp', harness + path.delimiter + framework, 'PluginRegistryTest', home,
-  path.join(output, 'configuration'), configurator, info, pluginJar, installed ? 'installed' : 'test', ...(nativeBundle ? [nativeBundle] : [])]);
+  path.join(output, 'configuration'), configurator, info, pluginJar, installed ? 'installed' : 'test', ...(nativeBundle ? [nativeBundle] : jdbcSession ? ['jdbc-session'] : [])]);
 if (nativeStartup && (!registryOutput.includes('Native SWT/') || !registryOutput.includes('Equinox registry tests OK'))) {
   throw new Error('Native SWT startup did not complete, even though the runtime exited without an error code');
 }
+if (jdbcSession && !registryOutput.includes('Real MariaDB editor session OK')) throw new Error('The real JDBC session test did not complete');

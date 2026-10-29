@@ -11,6 +11,7 @@ public final class PluginRegistryTest {
         EclipseStarter.setInitialProperties(Map.of(
             "osgi.install.area", Path.of(args[0]).toUri().toString(),
             "osgi.configuration.area", Path.of(args[1]).toUri().toString(),
+            "osgi.instance.area", Path.of(args[1]).resolveSibling("workspace").toUri().toString(),
             "osgi.bundles", Path.of(args[2]).toUri() + "@1:start",
             "org.eclipse.equinox.simpleconfigurator.configUrl", Path.of(args[3]).toUri().toString(),
             "osgi.bundles.defaultStartLevel", "4",
@@ -25,7 +26,15 @@ public final class PluginRegistryTest {
                 ? bundle(framework.getBundles(), "org.example.dbeaver.echarts")
                 : framework.installBundle(Path.of(args[4]).toUri().toString());
             plugin.start();
-            if (args.length > 6) framework.installBundle(Path.of(args[6]).toUri().toString()).start();
+            if (plugin.getVersion().compareTo(new org.osgi.framework.Version("0.6.8")) >= 0) {
+                for (String resource : new String[]{"web/js/group-fields.js", "web/js/report-command-menu.js"}) {
+                    if (plugin.getEntry(resource) == null) throw new AssertionError("Authoring resource missing: " + resource);
+                }
+                plugin.loadClass("org.example.dbeaver.echarts.EditorQuerySessions");
+            }
+            if (args.length > 6 && args[6].equals("jdbc-session")) {
+                plugin.loadClass("org.example.dbeaver.echarts.EditorSessionJdbcTest").getMethod("main", String[].class).invoke(null, (Object)new String[0]);
+            } else if (args.length > 6) framework.installBundle(Path.of(args[6]).toUri().toString()).start();
             if (plugin.getState() != Bundle.ACTIVE) throw new AssertionError("Plugin unresolved");
             var assets = plugin.loadClass("org.example.dbeaver.echarts.WebAssets").getDeclaredMethod("resolve", String.class);
             assets.setAccessible(true);

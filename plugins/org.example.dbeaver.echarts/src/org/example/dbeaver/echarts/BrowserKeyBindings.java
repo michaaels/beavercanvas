@@ -31,19 +31,26 @@ final class BrowserKeyBindings {
     BrowserKeyBindings(IHandlerService service) { this.service = service; }
 
     static BrowserKeyBindings install(Browser browser) {
+        return install(browser, false);
+    }
+
+    static BrowserKeyBindings install(Browser browser, boolean reportCommands) {
         if (!PlatformUI.isWorkbenchRunning()) return null;
         var workbench = PlatformUI.getWorkbench();
         IHandlerService service = workbench.getService(IHandlerService.class);
         IFocusService focus = workbench.getService(IFocusService.class);
         if (service == null || focus == null) return null;
         BrowserKeyBindings keys = new BrowserKeyBindings(service);
-        keys.focus = focus; keys.attach(browser);
+        keys.focus = focus; keys.attach(browser, reportCommands);
         return keys;
     }
 
     static boolean ownsFocus(Object focused, Object browser) { return browser != null && focused == browser; }
 
     void attach(Browser control) {
+        attach(control, false);
+    }
+    void attach(Browser control, boolean reportCommands) {
         browser = control;
         if (focus != null) focus.addFocusTracker(control, "org.example.dbeaver.echarts.browser");
         Expression scope = new Expression() {
@@ -52,7 +59,9 @@ final class BrowserKeyBindings {
             }
             @Override public void collectExpressionInfo(ExpressionInfo info) { info.addVariableNameAccess(ISources.ACTIVE_FOCUS_CONTROL_NAME); }
         };
-        for (String command : List.of("copy", "paste", "cut", "selectAll", "undo", "redo")) {
+        var commands = new ArrayList<>(List.of("copy", "paste", "cut", "selectAll", "undo", "redo"));
+        if (reportCommands) commands.addAll(List.of("save", "findReplace"));
+        for (String command : commands) {
             AbstractHandler handler = new AbstractHandler() {
                 @Override public boolean isEnabled() { return !control.isDisposed() && control.isFocusControl(); }
                 @Override public Object execute(ExecutionEvent event) throws ExecutionException {
@@ -63,13 +72,16 @@ final class BrowserKeyBindings {
                 }
             };
             handlers.add(handler);
-            activations.add(service.activateHandler("org.eclipse.ui.edit." + command, handler, scope));
+            activations.add(service.activateHandler(command.equals("save") ? "org.eclipse.ui.file.save" : "org.eclipse.ui.edit." + command, handler, scope));
         }
         control.addListener(SWT.Dispose, event -> release());
     }
 
     private void edit(String command) {
-        if (command.equals("copy") || command.equals("cut")) {
+        if (command.equals("save") || command.equals("findReplace")) {
+            browser.execute("(document.activeElement||document.body).dispatchEvent(new KeyboardEvent('keydown',{key:"
+                + JsonWriter.write(command.equals("save") ? "s" : "f") + ",ctrlKey:true,bubbles:true,cancelable:true}));");
+        } else if (command.equals("copy") || command.equals("cut")) {
             Object result = browser.evaluate("return (()=>{const e=document.activeElement;return e&&typeof e.selectionStart==='number'?e.value.slice(e.selectionStart,e.selectionEnd):String(window.getSelection()||'');})()");
             if (!(result instanceof String text) || text.isEmpty() || text.length() > 1_048_576) return;
             Clipboard clipboard = new Clipboard(browser.getDisplay());

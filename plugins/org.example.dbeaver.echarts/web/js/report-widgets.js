@@ -55,7 +55,7 @@
     if (config.chartType !== 'map' && (xIndex < 0 || !yIndices.length)) throw new Error('Choose a category and numeric series in Chart properties.');
     const option = window.DBeaverEChartsAnalytics.buildOption({ rows: snapshot.rows, columns, rowCount: snapshot.rows.length, xIndex, yIndices,
       yAxes: Object.fromEntries(yIndices.map(index => [index, config.yAxes[columns[index].name] || 'left'])),
-        chartType: config.chartType, map: config.map, marks: config.marks, viewport: config.viewport,
+        chartType: config.chartType, map: config.map, grouping: config.grouping, marks: config.marks, viewport: config.viewport,
         theme: { ...THEME, background: widget.style.background === 'transparent' ? '#ffffff' : widget.style.background }, dashboard: true });
     option.animation = false;
     if (config.colors?.length) option.color = config.colors;
@@ -238,7 +238,16 @@
     if (!definition) throw new Error('Unknown report component.');
     if (context.errors?.[widget.sourceId]) body.append(node('p', context.errors[widget.sourceId], 'report-data-error'));
     if (context.loading?.has(widget.sourceId)) body.append(node('p', 'Refreshing data…', 'report-loading'));
-    return definition.render(body, widget, snapshot, context);
+    const dispose = definition.render(body, widget, snapshot, context);
+    if (['text', 'heading'].includes(widget.type)) {
+      const text = body.querySelector('.report-paragraph, .report-heading');
+      if (text) {
+        const indent = Math.min(widget.config.textIndent || 0, Math.max(0, body.clientWidth - widget.style.padding * 2 - 32));
+        text.style.paddingLeft = `${indent}px`;
+        if (widget.type === 'text') text.style.maxWidth = `calc(80ch + ${indent}px)`;
+      }
+    }
+    return dispose;
   }
   function renderReport(root, report, snapshots, context = {}) {
     const cleanup = [];

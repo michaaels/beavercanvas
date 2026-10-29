@@ -40,7 +40,7 @@ final class DashboardQueryApproval {
         if (source == null) throw new IllegalArgumentException("Missing query source");
         JsonArray parts = new JsonArray();
         parts.add(sql);
-        for (String field : new String[] {"kind", "project", "connectionId", "connection"}) {
+        for (String field : new String[] {"kind", "project", "connectionId", "connection", "executionMode", "sessionId"}) {
             parts.add(JsonFields.string(source, field));
         }
         // Report approvals also bind typed values and per-source row limits.

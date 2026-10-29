@@ -7,7 +7,7 @@
   let chart = null;
   let observer = null;
   let elements = null;
-  const signature = source => JSON.stringify([source.sql, source.project || '', source.connectionId || '', source.connection || '']);
+  const signature = source => JSON.stringify([source.sql, source.project || '', source.connectionId || '', source.connection || '', source.executionMode || 'isolated', source.sessionId || '']);
 
   function init() {
     if (elements) return;
@@ -32,6 +32,21 @@
     hint.setAttribute('role', 'status'); elements.Type.closest('.widget-editor-fields').after(hint);
     elements.Type.setAttribute('aria-describedby', hint.id);
     elements.Hint = hint;
+    const executionLabel = document.createElement('label'), execution = document.createElement('select');
+    execution.setAttribute('aria-label', 'Execution context'); executionLabel.append(document.createTextNode('Execution context'), execution);
+    elements.Connection.closest('label').after(executionLabel); elements.Execution = execution;
+    const executionHint = document.createElement('p'); executionHint.className = 'widget-editor-hint';
+    executionHint.textContent = 'Use an editor session for temporary tables and its current database. Re-select it after reopening a template; its transaction remains under DBeaver control.';
+    executionLabel.after(executionHint);
+    execution.addEventListener('change', () => {
+      const source = session.draft.source, selected = session.editorSessions.find(item => item.sessionId === execution.value);
+      source.executionMode = selected ? 'editor' : 'isolated'; delete source.sessionId;
+      if (selected) source.sessionId = selected.sessionId;
+      sourceChanged();
+    });
+    elements.Grouping = document.createElement('fieldset'); elements.Grouping.className = 'widget-editor-grouping';
+    const groupingTitle = document.createElement('legend'); groupingTitle.textContent = 'Grouping'; elements.Grouping.append(groupingTitle);
+    elements.GroupFields = document.createElement('div'); elements.Grouping.append(elements.GroupFields); elements.Series.closest('fieldset').after(elements.Grouping);
       const sourceLabel = document.createElement('label'), sourceChoice = document.createElement('select');
       sourceLabel.append(document.createTextNode('Saved query'), sourceChoice); sourceChoice.setAttribute('aria-label', 'Saved query');
       elements.Connection.closest('label').before(sourceLabel); elements.SourceChoice = sourceChoice; elements.SourceLabel = sourceLabel;
@@ -47,7 +62,7 @@
           elements.Connection.querySelector('option[value="retained"]').textContent = `${chosen.project || 'Project'} / ${chosen.connection || chosen.connectionId || 'Choose connection'}`;
           elements.Connection.value = chosen.connectionId || chosen.connection ? 'retained' : '';
         }
-        showError(null); renderFields(); renderData(); renderPreview();
+        showError(null); renderExecutionContexts(); renderFields(); renderData(); renderPreview();
         setStatus(session.data ? 'Using the saved query result. Run preview to execute again.' : 'Run preview to load the saved query.');
       });
       const appearance = document.createElement('fieldset'), legend = document.createElement('legend');
@@ -133,6 +148,8 @@
     try { connections = JSON.parse(window.dbeaverListConnections?.() || '[]'); }
     catch (error) { showError('Could not list connections.'); }
     session.connections = Array.isArray(connections) ? connections : [];
+    try { session.editorSessions = JSON.parse(window.dbeaverListEditorSessions?.() || '[]'); }
+    catch (error) { session.editorSessions = []; showError('Could not list SQL editor sessions.'); }
     session.connections.forEach((connection, index) => {
       elements.Connection.append(new Option(`${connection.project} / ${connection.connection}`, String(index)));
       if (connection.connectionId === draft.source.connectionId && connection.project === draft.source.project) {
@@ -144,6 +161,7 @@
       elements.Connection.value = 'retained';
     }
     showError(null);
+    renderExecutionContexts();
     elements.dialog.querySelector('.widget-editor-advanced').open = false;
     setStatus(snapshot ? 'Using the current result. Run preview to execute this SQL again.' : 'Run preview to load columns and sample rows.');
     renderFields();
@@ -175,6 +193,7 @@
     } else if (elements.Connection.value === '') {
       Object.assign(session.draft.source, { project: null, connectionId: null, connection: null });
     }
+    renderExecutionContexts();
     // Keep the previous result available in Data while the new SQL is edited or running.
     session.previewApproved = false;
     showError(null);
@@ -182,6 +201,17 @@
     renderData();
     renderPreview();
     updateSave();
+  }
+  function renderExecutionContexts() {
+    const source = session.draft.source;
+    elements.Execution.replaceChildren(new Option('Separate connection (default)', ''));
+    const matching = session.editorSessions.filter(item => item.connectionId === source.connectionId && item.project === source.project);
+    for (const item of matching) elements.Execution.append(new Option(`${item.title} — ${[item.catalog, item.schema].filter(Boolean).join(' / ') || item.connection}`, item.sessionId));
+    if (source.executionMode === 'editor') {
+      if (!matching.some(item => item.sessionId === source.sessionId)) {
+        delete source.sessionId; elements.Execution.append(new Option('Select the SQL editor session again', 'missing')); elements.Execution.value = 'missing';
+      } else elements.Execution.value = source.sessionId;
+    }
   }
 
   function cancelPreview() {
@@ -197,6 +227,7 @@
   function runPreview() {
     if (!session || !session.draft.source.sql.trim()) { showError('Enter SQL for this chart.'); return; }
     if (elements.Connection.value === '') { showError('Choose a connection for this chart.'); return; }
+    if (session.draft.source.executionMode === 'editor' && !session.draft.source.sessionId) { showError('Select the SQL editor session for this query.'); elements.Execution.focus(); return; }
     cancelPreview();
     // Keep the previous result available in Data while the new SQL is edited or running.
     session.previewApproved = false;
@@ -256,6 +287,7 @@
 
   function renderFields() {
     const config = session.draft.chart;
+    elements.Grouping.hidden = !window.DBeaverEChartsAnalytics.canGroup(config.chartType);
     const isMap = config.chartType === 'map';
     elements.Map.hidden = !isMap;
     elements.Category.closest('label').hidden = isMap;
@@ -327,11 +359,13 @@
       elements.Series.appendChild(row);
     }
     updateSave();
+    window.DBeaverGroupFields.render(elements.GroupFields, config, columns, () => { renderFields(); renderPreview(); });
   }
 
   function validDraft() {
     return Boolean(session && !session.loading && session.draft.title.trim() && session.draft.source.sql.trim()
-      && elements.Connection.value !== '' && (!session.data || session.dataBinding === signature(session.draft.source))
+      && elements.Connection.value !== '' && (session.draft.source.executionMode !== 'editor' || Boolean(session.draft.source.sessionId))
+      && (!session.data || session.dataBinding === signature(session.draft.source))
       && (session.draft.chart.chartType === 'map'
         ? !window.DBeaverGeoData.mappingError(session.draft.chart.map, session.data?.columns || [])
         : session.draft.chart.xColumn && session.draft.chart.yColumns.length));
@@ -390,7 +424,7 @@
     try {
       const option = window.DBeaverEChartsAnalytics.buildOption({ rows: session.data.rows, columns, rowCount: session.data.rows.length,
         xIndex, yIndices, yAxes: Object.fromEntries(yIndices.map(index => [index, config.yAxes[columns[index].name] || 'left'])),
-        chartType: config.chartType, map: config.map, marks: config.marks, colors: config.colors, legend: config.legend, viewport: config.viewport, theme: session.theme });
+        chartType: config.chartType, map: config.map, grouping: config.grouping, marks: config.marks, colors: config.colors, legend: config.legend, viewport: config.viewport, theme: session.theme });
       if (session.step !== 'chart') return;
       chart = window.echarts.init(elements.Preview, null, { renderer: session.renderer });
       chart.setOption(option, { notMerge: true, lazyUpdate: false });

@@ -78,7 +78,28 @@
         : target.y < initial.y && center < initial.y + initial.height && center >= target.y + target.height / 2;
     });
     const group = [moving, ...siblings];
-    if (!crossed) { changeLayout(group, id, target, bounds); return; }
+    if (!crossed) {
+      // A connected flow follows a block into the space it vacates, even when
+      // the block moves into blank space without crossing another row.
+      const followers = new Set(), anchors = [initial];
+      for (const widget of [...siblings].sort((a, b) => a.layout.y - b.layout.y)) {
+        const next = widget.layout;
+        if (anchors.some(above => next.y === above.y + above.height
+            && next.x < above.x + above.width && next.x + next.width > above.x)) {
+          followers.add(widget); anchors.push(next);
+        }
+      }
+      moving.layout = target;
+      if (target.y < initial.y) {
+        const fixed = [moving, ...siblings.filter(widget => !followers.has(widget))].map(widget => widget.layout);
+        for (const widget of followers) {
+          let y = Math.max(0, widget.layout.y + target.y - initial.y);
+          while (y < widget.layout.y && fixed.some(other => overlaps({ ...widget.layout, y }, other))) y++;
+          widget.layout = { ...widget.layout, y }; fixed.push(widget.layout);
+        }
+      }
+      placeWidgets(group, id, bounds); return;
+    }
     const rows = new Map();
     for (const widget of siblings) {
       if (!rows.has(widget.layout.y)) rows.set(widget.layout.y, []);

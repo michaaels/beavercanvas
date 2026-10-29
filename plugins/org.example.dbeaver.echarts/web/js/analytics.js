@@ -80,6 +80,54 @@
     return [...totals.entries()].map(([name, value]) => ({ name, value }));
   }
 
+  const GROUP_AGGREGATES = ['none', 'sum', 'average', 'count', 'min', 'max'];
+  const canGroup = type => CARTESIAN_TYPES.has(type) || ['pie', 'treemap', 'funnel', 'radar', 'heatmap'].includes(type);
+  function normalizeGrouping(value) {
+    const seriesColumn = typeof value?.seriesColumn === 'string' ? value.seriesColumn.slice(0, 200) : '';
+    return { aggregate: GROUP_AGGREGATES.includes(value?.aggregate) ? value.aggregate : seriesColumn ? 'sum' : 'none',
+      seriesColumn, mode: value?.mode === 'category' ? 'category' : 'series' };
+  }
+  function groupedContext(context) {
+    const grouping = normalizeGrouping(context.grouping);
+    if (!canGroup(context.chartType) || grouping.aggregate === 'none' && !grouping.seriesColumn) return context;
+    const { columns, xIndex, yIndices } = context;
+    const second = grouping.seriesColumn ? columns.findIndex(column => column.name === grouping.seriesColumn) : -1;
+    if (grouping.seriesColumn && (second < 0 || second === xIndex)) throw new Error('Choose a different, available field for the second category.');
+    const split = second >= 0 && grouping.mode === 'series';
+    if (split && !CARTESIAN_TYPES.has(context.chartType)) throw new Error('Use combined categories for this chart, or choose a line/bar chart for separate series.');
+    const series = new Map(), groups = new Map(), categories = new Map();
+    const method = grouping.aggregate === 'none' ? 'sum' : grouping.aggregate;
+    for (const row of context.rows) {
+      const rawX = row[xIndex], rawSecond = second >= 0 ? row[second] : null;
+      const categoryKey = JSON.stringify(second >= 0 && !split ? [rawX, rawSecond] : [rawX]);
+      const seriesKey = JSON.stringify(split ? [rawSecond] : []);
+      if (!series.has(seriesKey)) {
+        if ((series.size + 1) * yIndices.length > 48) throw new Error('Grouping produces more than 48 series. Filter the data or select fewer measures.');
+        series.set(seriesKey, rawSecond);
+      }
+      if (!categories.has(categoryKey)) categories.set(categoryKey, second >= 0 && !split ? `${displayValue(rawX)} · ${displayValue(rawSecond)}` : rawX);
+      const key = JSON.stringify([categoryKey, seriesKey]);
+      if (!groups.has(key)) groups.set(key, yIndices.map(() => ({ count: 0, sum: 0, min: Infinity, max: -Infinity, rows: 0 })));
+      groups.get(key).forEach((acc, index) => {
+        acc.rows++; const value = toNumber(row[yIndices[index]]); if (!Number.isFinite(value)) return;
+        acc.count++; acc.sum += value; acc.min = Math.min(acc.min, value); acc.max = Math.max(acc.max, value);
+      });
+    }
+    const resultColumns = [{ ...columns[xIndex], ...(second >= 0 && !split ? { kind: 'STRING', name: `${columns[xIndex].name} · ${columns[second].name}` } : {}) }], axes = {};
+    for (const [, label] of series) for (const index of yIndices) {
+      axes[resultColumns.length] = context.yAxes?.[index] || 'left';
+      resultColumns.push({ name: split ? `${columns[index].name} / ${displayValue(label)}` : columns[index].name, kind: 'NUMERIC', axisName: columns[index].name });
+    }
+    const rows = [...categories].map(([key, label]) => {
+      const values = [label];
+      for (const seriesKey of series.keys()) for (const acc of groups.get(JSON.stringify([key, seriesKey])) || yIndices.map(() => null)) {
+        values.push(!acc ? null : method === 'count' ? acc.rows : !acc.count ? null : method === 'average' ? acc.sum / acc.count : acc[method]);
+      }
+      return values;
+    });
+    return { ...context, rows, columns: resultColumns, xIndex: 0, yIndices: resultColumns.slice(1).map((_, index) => index + 1), yAxes: axes };
+  }
+
   function toolbox(theme, zoom = false) {
     const feature = { restore: {}, saveAsImage: {} };
     if (zoom) feature.dataZoom = { yAxisIndex: 'none' };
@@ -166,7 +214,10 @@
     const categories = [...new Set(rows.filter(row => yIndices.some(index => Number.isFinite(toNumber(row[index])))).map(row => displayValue(row[xIndex])))];
     const option = baseOption(context, true);
     const axisNames = { left: [], right: [] };
-    for (const index of yIndices) axisNames[!stacked && yAxes[index] === 'right' ? 'right' : 'left'].push(columns[index].name);
+    for (const index of yIndices) {
+      const side = !stacked && yAxes[index] === 'right' ? 'right' : 'left', name = columns[index].axisName || columns[index].name;
+      if (!axisNames[side].includes(name)) axisNames[side].push(name);
+    }
 
     // Keep the axis names below the title/legend band, including dual axes.
     option.grid = { left: 62, right: axisNames.right.length ? 62 : 28, top: context.dashboard ? 68 : 96, bottom: 64, containLabel: true };
@@ -452,7 +503,9 @@
     chart.on('restore', () => changed({}));
   }
   function buildOption(context) {
-    const option = buildBaseOption(context), view = normalizeViewport(context.viewport);
+    const grouped = groupedContext(context), option = buildBaseOption(grouped), view = normalizeViewport(context.viewport);
+    if (grouped !== context && option.title) option.title.text = titleText(context.columns, context.xIndex, context.yIndices)
+      + (context.grouping?.seriesColumn ? ` / ${context.grouping.seriesColumn}` : '');
     if (view.dataZoom && Array.isArray(option.dataZoom)) option.dataZoom.forEach((zoom, index) => Object.assign(zoom, view.dataZoom[index] || view.dataZoom[0] || {}));
     if (view.geo && option.geo) Object.assign(option.geo, view.geo);
     if (Array.isArray(context.colors) && context.colors.length) option.color = context.colors;
@@ -466,10 +519,10 @@
   function chartTitle(config) {
     if (config.chartType === 'map' && config.map) return `${config.map.value || 'Locations'} by ${config.map.label || 'location'}`.slice(0, 200);
     const names = (config.chartType === 'pie' ? (config.yColumns || []).slice(0, 1) : (config.yColumns || [])).join(', ');
-    return (names ? `${names}${config.xColumn && config.chartType !== 'gauge' ? ` by ${config.xColumn}` : ''}` : 'Chart').slice(0, 200);
+    return (names ? `${names}${config.xColumn && config.chartType !== 'gauge' ? ` by ${config.xColumn}` : ''}${config.grouping?.seriesColumn ? ` / ${config.grouping.seriesColumn}` : ''}` : 'Chart').slice(0, 200);
   }
   window.DBeaverEChartsAnalytics = Object.freeze({ buildOption, chartTitle, displayValue, hasRenderableData, toNumber, CHART_TYPES, populateTypes,
-    normalizeViewport, viewportOf, watchViewport });
+    normalizeViewport, viewportOf, watchViewport, normalizeGrouping, groupedContext, canGroup, canSplitGroup: type => CARTESIAN_TYPES.has(type) });
   if (typeof document !== 'undefined') {
     const select = document.getElementById('chartType'); if (select) populateTypes(select);
   }

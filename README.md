@@ -51,6 +51,11 @@ Las [mejoras de edición directa](docs/REPORT-AUTHORING-UX.md) incluyen texto so
 la hoja, configuración/actualización en cada gráfico, pastel de valor único y
 conservación del zoom de gráficos y mapas.
 
+En desarrollo: [zoom con Ctrl+rueda, inserción con `/`, agrupación por sitio/fecha
+y sesiones SQL para tablas temporales](docs/AUTHORING-WORKFLOW.md).
+El [análisis de automatización por CLI y correo](docs/CLI-AUTOMATION-ANALYSIS.md)
+describe la siguiente función propuesta; no está incluida en la beta publicada.
+
 Capturas del frontend local de BeaverCanvas con datos de ejemplo, tomadas durante
 las pruebas de interacción. La [captura nativa de la beta 0.6.0 en Linux](docs/screenshots/report-designer-linux.png)
 se conserva como evidencia histórica de DBeaver; todavía muestra el nombre anterior.

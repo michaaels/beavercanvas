@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.6.8 preview — 2026-10-28
+
+- Zoom Report Designer with Ctrl+wheel while retaining ordinary scrolling and
+  the chart's own zoom range; preserve the pointer anchor within scroll bounds.
+- Type at the horizontal blank-sheet caret, open a searchable component menu
+  with `/`, and navigate/find components without replacing native text shortcuts.
+- Pull connected charts upward when moving an inserted component into blank space.
+- Replace the primary Y measure from its selector; keep multi-measure selection
+  in Series. Group loaded rows by date/category and optionally split by site,
+  with sum/average/count/min/max and matching report/export options.
+- Allow explicit use of an open editor execution context for temporary tables,
+  with runtime-only bindings, approval invalidation, serialized refresh and
+  ownership of the editor connection/transaction preserved.
+- Document CLI generation and mail delivery feasibility; no CLI or automatic mail
+  transport is shipped by this change.
+
 ## 0.6.7 beta — 2026-10-16
 
 - Replace global Eclipse key-filter suppression with browser-scoped editing

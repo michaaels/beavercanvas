@@ -69,4 +69,15 @@ assert.deepEqual(flow.map(widget => widget.layout.y), [8, 0, 0, 20], 'Lower alig
 layout.moveInFlow(flow, 'full', { ...flow[0].layout, y: 0 });
 assert.deepEqual(flow.map(widget => widget.layout.y), [0, 8, 8, 20], 'Dragging back up restores row order, including midpoint ties');
 assert.deepEqual(flow.map(widget => [widget.layout.x, widget.layout.width, widget.layout.height]), dimensions);
+const inserted = [
+  { id: 'header', layout: { x: 0, y: 10, width: 12, height: 2 } },
+  { id: 'chart', layout: { x: 0, y: 12, width: 12, height: 8 } },
+  { id: 'left', layout: { x: 0, y: 20, width: 6, height: 4 } },
+  { id: 'right', layout: { x: 6, y: 20, width: 6, height: 5 } },
+  { id: 'intentional-gap', layout: { x: 0, y: 30, width: 12, height: 2 } },
+  { id: 'nested', parentId: 'section', layout: { x: 0, y: 12, width: 12, height: 8 } }
+];
+layout.moveInFlow(inserted, 'header', { ...inserted[0].layout, y: 3 }, { minHeight: 1, maxHeight: 80 });
+assert.deepEqual(inserted.map(widget => widget.layout.y), [3, 5, 13, 13, 30, 12],
+  'An inserted header pulls its connected chart and aligned followers upward, preserving intentional gaps and section boundaries');
 console.log('Dashboard layout tests OK: legacy migration, eight-edge resize, bidirectional row flow, aligned columns, section isolation, persistence and 24-widget collisions');

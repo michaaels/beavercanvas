@@ -20,6 +20,7 @@ public final class DashboardQueryControlsTest {
     public static void main(String[] args) {
         try {
             installTestWorkbench();
+            org.jkiss.dbeaver.model.qm.QMUtils.initPlatform(false);
             sqlPolicy();
             approvals();
             cancellation(false);
@@ -27,18 +28,21 @@ public final class DashboardQueryControlsTest {
             isolationFailure(false);
             isolationFailure(true);
             concurrency();
+            borrowedSession();
             System.out.println("Dashboard query controls OK: lexical policy, approval binding, timeout, cancellation, isolation, 4-query limit");
+            org.jkiss.dbeaver.model.qm.QMUtils.disposePlatform();
         } catch (Throwable error) {
             error.printStackTrace();
             System.exit(1);
         }
     }
 
-    private static void installTestWorkbench() throws Exception {
+    static void installTestWorkbench() throws Exception {
         // AbstractJob's monitor checks platform shutdown. Supply that service only in this
         // isolated test JVM; all production scheduling/cancellation classes remain real.
         DBPPlatform platform = proxy(DBPPlatform.class, (object, method, args) -> {
             if (method.getName().equals("isShuttingDown")) return false;
+            if (method.getName().equals("getApplication")) return null; // No optional QM configuration adapter in this test JVM.
             throw new AssertionError("Unexpected platform access: " + method.getName());
         });
         DBPApplicationWorkbench workbench = proxy(DBPApplicationWorkbench.class, (object, method, args) -> {
@@ -90,6 +94,11 @@ public final class DashboardQueryControlsTest {
         source.addProperty("project", "Other");
         check(!approval.accepts("w", "SELECT 1", source), "Changed project retained approval");
         source.addProperty("project", "General");
+        source.addProperty("executionMode", "editor"); source.addProperty("sessionId", "session-one");
+        check(!approval.accepts("w", "SELECT 1", source), "Changed execution context retained approval");
+        check(approval.approve("[{\"id\":\"w\",\"sql\":\"SELECT 1\",\"source\":" + source + "}]"), "Editor session approval failed");
+        source.addProperty("sessionId", "session-two");
+        check(!approval.accepts("w", "SELECT 1", source), "Changed editor session retained approval");
         check(!approval.approve("[{\"id\":\"x\",\"sql\":\"SELECT 1\",\"source\":{}},{\"id\":\"x\",\"sql\":\"SELECT 2\",\"source\":{}}]"), "Duplicate IDs accepted");
         check(!approval.accepts("x", "SELECT 1", new JsonObject()), "Partial approval leaked");
         approval.clear();
@@ -151,11 +160,27 @@ public final class DashboardQueryControlsTest {
         }
     }
 
+    private static void borrowedSession() throws Exception {
+        Fixture fixture = new Fixture(true, false, true);
+        AtomicReference<Exception> error = new AtomicReference<>();
+        DashboardQueryJob job = new DashboardQueryJob(() -> fixture.shared, "SELECT * FROM temporary_sales", 100, 1000, 30,
+            ignored -> { throw new AssertionError("Cancelled query published data"); }, error::set, java.util.List.of(), true);
+        job.schedule(); check(fixture.started.await(5, TimeUnit.SECONDS), "Borrowed query did not start");
+        job.requestCancellation(); check(job.join(5000, null), "Borrowed query did not cancel");
+        check(fixture.editorSessions.get() == 1 && fixture.closed.get() == 0 && fixture.sharedClosed.get() == 0,
+            "The explicitly chosen editor context must be used without opening or closing another context");
+        check(error.get() == null && fixture.timeout.get() == 30, "Borrowed session retains cancellation and timeout controls");
+        System.out.println("Borrowed editor session OK: exact context, single-connection support, cancellation and resource ownership");
+    }
+
     private static final class Fixture {
         final CountDownLatch started = new CountDownLatch(1), cancelled = new CountDownLatch(1);
         final AtomicInteger timeout = new AtomicInteger(), closed = new AtomicInteger(), sharedClosed = new AtomicInteger(), editorSessions = new AtomicInteger();
         final DBCExecutionContext shared;
         Fixture(boolean single, boolean returnsShared) {
+            this(single, returnsShared, false);
+        }
+        Fixture(boolean single, boolean returnsShared, boolean allowBorrow) {
             DBCStatement statement = proxy(DBCStatement.class, (object, method, args) -> {
                 switch (method.getName()) {
                     case "setStatementTimeout": timeout.set((int) args[0]); return null;
@@ -189,7 +214,7 @@ public final class DashboardQueryControlsTest {
                     case "getDataSource": return dataSource;
                     case "getOwnerInstance": return owner;
                     case "close": sharedClosed.incrementAndGet(); return null;
-                    case "openSession": editorSessions.incrementAndGet(); throw new AssertionError("Editor session opened");
+                    case "openSession": editorSessions.incrementAndGet(); if (allowBorrow) return session; throw new AssertionError("Editor session opened");
                     default: return defaultValue(method.getReturnType());
                 }
             });

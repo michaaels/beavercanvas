@@ -9,13 +9,21 @@
     const inlineEdit = window.DBeaverReportInlineEdit.create($('reportCanvas'), {
       select: () => select(), zoom: () => zoom, rowPitch: () => 24 + current().page.gap,
       value: id => current().widgets.find(widget => widget.id === id)?.config.text || '',
-      position: (event, grid) => { const candidate = dropCandidate(event, grid, 'text'); return candidate?.valid ? candidate.widget : null; },
+      position: (event, grid) => {
+        const candidate = dropCandidate(event, grid, 'text'); if (!candidate?.valid) return null;
+        candidate.widget.layout.x = 0; candidate.widget.layout.width = 12;
+        candidate.widget.config.textIndent = Math.max(0, Math.min(grid.getBoundingClientRect().width / zoom - 44,
+          (event.clientX - grid.getBoundingClientRect().left) / zoom - 12));
+        return candidate.widget;
+      },
+      commands: showComponentCommands,
       text: (id, text) => change(draft => { draft.widgets.find(widget => widget.id === id).config.text = text; },
         { mergeKey: `inline.${id}`, render: false, canvas: false, reconcile: false }),
       end: () => { history.breakMerge(); renderProperties(); renderLayers(); },
       insert: (position, text) => {
         if (!position) return null;
-        const widget = M.widget('text'); Object.assign(widget, { layout: position.layout, parentId: position.parentId }); widget.config.text = text;
+        const widget = M.widget('text'); Object.assign(widget, { layout: position.layout, parentId: position.parentId });
+        widget.config.text = text; widget.config.textIndent = position.config?.textIndent || 0;
         selected = new Set([widget.id]);
         return change(draft => { draft.widgets.push(widget); draft.priorityId = widget.id; }) ? widget.id : null;
       }
@@ -46,7 +54,7 @@
     $('reportDirty').textContent = dirty() ? 'Unsaved' : '';
     window.dbeaverDashboardChanged?.();
     window.clearTimeout(persistTimer);
-    persistTimer = window.setTimeout(() => window.dbeaverSaveConfiguration?.(JSON.stringify(current())), 250);
+    persistTimer = window.setTimeout(() => window.dbeaverSaveConfiguration?.(JSON.stringify(M.portable(current()))), 250);
   }
   function change(action, options = {}) {
     try {
@@ -116,6 +124,78 @@
     };
   }
   function resizeStage() { $('reportStage').style.height = `${Math.max(480, $('reportCanvas').scrollHeight) * zoom}px`; }
+  function setZoom(value, pointer) {
+    const next = Math.max(0.25, Math.min(2, Math.round(value * 100) / 100)); if (next === zoom || gesture) return;
+    const scroll = $('reportCanvas').closest('.report-canvas-scroll'), before = $('reportCanvas').getBoundingClientRect();
+    const anchor = pointer || { clientX: scroll.getBoundingClientRect().left + scroll.clientWidth / 2, clientY: scroll.getBoundingClientRect().top + scroll.clientHeight / 2 };
+    const x = (anchor.clientX - before.left) / zoom, y = (anchor.clientY - before.top) / zoom;
+    zoom = next;
+    const selector = $('reportZoom');
+    selector.querySelector('[data-wheel-zoom]')?.remove();
+    if (![...selector.options].some(option => Number(option.value) === zoom)) {
+      const option = new Option(`${Math.round(zoom * 100)}%`, String(zoom)); option.dataset.wheelZoom = ''; selector.append(option);
+    }
+    selector.value = String(zoom);
+    // Scaling does not rebuild charts, text selections or the document history.
+    $('reportCanvas').style.transform = `scale(${zoom})`; $('reportStage').style.width = `${current().page.width * zoom}px`; resizeStage();
+    const after = $('reportCanvas').getBoundingClientRect();
+    scroll.scrollLeft += after.left + x * zoom - anchor.clientX;
+    scroll.scrollTop += after.top + y * zoom - anchor.clientY;
+    inlineEdit.clear(); window.DBeaverReportCommandMenu.close();
+  }
+  function showComponentCommands(position, anchor) {
+    window.DBeaverReportCommandMenu.open({ title: 'Insert a component', anchor,
+      entries: [...W.registry].map(([id, definition]) => ({ id, label: `${definition.icon}  ${definition.label}`, keywords: id })),
+      choose: type => {
+        const widget = M.widget(type); widget.parentId = position.parentId;
+        Object.assign(widget.layout, { x: position.layout.x, y: position.layout.y });
+        if (type === 'text') { widget.config.text = ''; widget.config.textIndent = position.config?.textIndent || 0; }
+        selected = new Set([widget.id]);
+        if (change(draft => { if (position.replaceId) draft.widgets = draft.widgets.filter(item => item.id !== position.replaceId); draft.widgets.push(widget); draft.priorityId = widget.id; })) {
+          if (['text', 'heading'].includes(type)) inlineEdit.focus(widget.id, true);
+          else $('reportCanvas').querySelector(`[data-component-id="${widget.id}"]`)?.focus();
+        }
+      } });
+  }
+  function focusComponent(id) {
+    select(id); const frame = $('reportCanvas').querySelector(`[data-component-id="${CSS.escape(id)}"]`);
+    frame?.focus(); frame?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }
+  function findComponent() {
+    window.DBeaverReportCommandMenu.open({ title: 'Find a component', action: 'Select',
+      anchor: $('reportTitle').getBoundingClientRect(),
+      entries: [...current().widgets].sort((a, b) => a.layout.y - b.layout.y || a.layout.x - b.layout.x)
+        .map(widget => ({ id: widget.id, label: widget.title, keywords: `${widget.type} ${widget.config.text}` })),
+      choose: focusComponent });
+  }
+  function navigateSheet(event) {
+    const frame = event.target.closest('.report-component'), active = current().widgets.find(item => item.id === frame?.dataset.componentId);
+    if (event.target !== $('reportCanvas') && event.target !== frame && !event.target.matches('.report-move')) return false;
+    const control = event.ctrlKey || event.metaKey, key = event.key;
+    if (event.target.matches('.report-move') && !control && !['Home', 'End'].includes(key)) return false;
+    const items = [...current().widgets].sort((a, b) => a.layout.y - b.layout.y || a.layout.x - b.layout.x);
+    let next;
+    if (key === 'Home' || key === 'End') {
+      const row = control || !active ? items : items.filter(item => item.parentId === active.parentId && item.layout.y === active.layout.y);
+      next = key === 'Home' ? row[0] : row.at(-1);
+    } else if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(key) && !event.altKey) {
+      if (!active) next = items[0];
+      else if (control) next = items[Math.max(0, Math.min(items.length - 1, items.indexOf(active) + (['ArrowLeft', 'ArrowUp'].includes(key) ? -1 : 1)))];
+      else {
+        const center = item => ({ x: item.layout.x + item.layout.width / 2, y: item.layout.y + item.layout.height / 2 });
+        const origin = center(active), horizontal = ['ArrowLeft', 'ArrowRight'].includes(key), sign = ['ArrowLeft', 'ArrowUp'].includes(key) ? -1 : 1;
+        next = items.filter(item => item !== active && item.parentId === active.parentId)
+          .map(item => { const point = center(item), forward = sign * (horizontal ? point.x - origin.x : point.y - origin.y), side = Math.abs(horizontal ? point.y - origin.y : point.x - origin.x);
+            return { item, forward, score: forward + side * 2 }; })
+          .filter(candidate => candidate.forward > 0).sort((a, b) => a.score - b.score)[0]?.item;
+      }
+    } else if (key === 'Enter' && active) {
+      event.preventDefault(); if (['text', 'heading'].includes(active.type)) inlineEdit.focus(active.id);
+      else if (active.type === 'chart') openChart(active);
+      else frame.querySelector('.report-move')?.focus(); return true;
+    } else return false;
+    event.preventDefault(); if (next) focusComponent(next.id); return true;
+  }
   function clearDropPreview(end = false) {
     dropPreview?.layouts.restore();
     dropPreview?.dispose?.(); dropPreview?.frame.remove(); dropPreview = null;
@@ -274,6 +354,7 @@
       inlineEdit.decorate(frame, widget);
     frame.classList.toggle('selected', selected.has(widget.id)); frame.tabIndex = 0;
     frame.setAttribute('aria-label', `${W.registry.get(widget.type).label}: ${widget.title}`);
+    frame.addEventListener('focus', () => select(widget.id));
     frame.dataset.conditionHidden = String(!W.visible(widget, execution.state().snapshots[widget.sourceId]));
     frame.addEventListener('pointerdown', event => {
       if (event.target.closest('.report-component') === frame && !event.target.closest('.report-resize, .report-move')) select(widget.id, event.shiftKey);
@@ -300,8 +381,8 @@
       const updated = $('reportCanvas').querySelector(`[data-component-id="${CSS.escape(widget.id)}"]`);
       updated?.querySelector(edge ? `[data-edge="${edge}"]` : '.report-move')?.focus();
     }
-    move.addEventListener('keydown', event => keyboard(event));
-    frame.addEventListener('keydown', event => { if (event.target === frame) keyboard(event); });
+    move.addEventListener('keydown', event => { if (!event.ctrlKey && !event.metaKey) keyboard(event); });
+    frame.addEventListener('keydown', event => { if (event.target === frame && event.altKey) keyboard(event); });
     for (const edge of ['n', 'e', 's', 'w', 'ne', 'nw', 'se', 'sw']) {
       const handle = P.button('', () => {}, `report-resize edge-${edge}`); handle.dataset.edge = edge; handle.tabIndex = edge === 'se' ? 0 : -1;
       handle.setAttribute('aria-label', `Resize ${widget.title} from ${edge}`);
@@ -377,7 +458,7 @@
     discardAction = action; showDialog('reportConfirmDialog');
   }
   function save(as = false) {
-    const path = window.dbeaverSaveReport?.(JSON.stringify(current()), as);
+    const path = window.dbeaverSaveReport?.(JSON.stringify(M.portable(current())), as);
     if (path) { saved = JSON.stringify(current()); renderControls(); status(`Template saved: ${path}`); }
     else status('Template was not saved.');
   }
@@ -614,7 +695,12 @@
     click('compactReport', () => { if (change(draft => M.compact(draft.widgets))) status('Vertical gaps closed. Columns and sizes retained; Undo restores the previous layout.'); });
     $('reportTitle').addEventListener('input', () => change(draft => { draft.title = $('reportTitle').value; }, { mergeKey: 'report.title', render: false }));
     $('componentProperties').addEventListener('focusout', () => history.breakMerge());
-    $('reportZoom').addEventListener('change', () => { zoom = Number($('reportZoom').value); renderCanvas(); });
+    $('reportZoom').title = 'Zoom the sheet (Ctrl + mouse wheel)';
+    $('reportZoom').addEventListener('change', () => setZoom(Number($('reportZoom').value)));
+    $('reportCanvas').closest('.report-canvas-scroll').addEventListener('wheel', event => {
+      if (!(event.ctrlKey || event.metaKey) || !event.deltaY || document.querySelector('dialog[open]')) return;
+      event.preventDefault(); event.stopPropagation(); setZoom(zoom + (event.deltaY < 0 ? 0.1 : -0.1), event);
+    }, { passive: false, capture: true });
     click('reportData', () => showData()); click('reportParameters', () => { renderParameters(); showDialog('reportParameterDialog'); });
     click('addReportSource', () => { const source = M.source({ name: `Query ${current().sources.length + 1}` }); if (change(draft => { draft.sources.push(source); })) { sourceSelection = source.id; renderSources(); } });
     click('addReportParameter', () => { let index = 1; while (current().parameters.some(parameter => parameter.name === `parameter_${index}`)) index++;
@@ -642,7 +728,7 @@
     });
     $('reportEmailMessage').addEventListener('change', updateEmailPreview);
     click('saveReportExport', () => {
-      const mode = $('reportExportFormat').value; exportFile(mode === 'template' ? JSON.stringify(current()) : exports()[mode](), mode, false, 'reportExportDialog');
+      const mode = $('reportExportFormat').value; exportFile(mode === 'template' ? JSON.stringify(M.portable(current())) : exports()[mode](), mode, false, 'reportExportDialog');
     });
     click('saveReportEmail', () => {
       try {
@@ -659,7 +745,10 @@
       if (gesture) return;
       const control = event.ctrlKey || event.metaKey, typing = event.target.closest('input,textarea,select,[contenteditable]:not([contenteditable=false])');
       if (control && event.key.toLowerCase() === 's') { event.preventDefault(); save(); return; }
+      if (control && event.key.toLowerCase() === 'f' && !document.querySelector('dialog[open]')) { event.preventDefault(); findComponent(); return; }
       if (typing || document.querySelector('dialog[open]')) return;
+      if (window.DBeaverReportCommandMenu.isOpen()) return;
+      if (navigateSheet(event)) return;
       if (control && event.key.toLowerCase() === 'z') { event.preventDefault(); $(event.shiftKey ? 'redoReport' : 'undoReport').click(); }
       else if (control && event.key.toLowerCase() === 'y') { event.preventDefault(); $('redoReport').click(); }
       else if (control && event.key.toLowerCase() === 'c') { event.preventDefault(); copy(); }
@@ -670,7 +759,7 @@
     });
     render(); window.dbeaverBrowserReady?.();
   }
-  window.DBeaverECharts = Object.freeze({ loadReport, reportDocument: () => M.clone(current()), setTheme, reportExportFinished,
+  window.DBeaverECharts = Object.freeze({ loadReport, reportDocument: () => M.portable(current()), setTheme, reportExportFinished,
     markReportSaved: () => { saved = JSON.stringify(current()); renderControls(); },
     setWidgetSnapshot: (id, snapshot) => window.DBeaverWidgetEditor.receiveSnapshot(id, snapshot) || execution.receive(id, snapshot),
     setWidgetError: (id, message) => window.DBeaverWidgetEditor.receiveError(id, message) || execution.receiveError(id, message),
